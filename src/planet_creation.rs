@@ -1,6 +1,7 @@
 use::bevy::prelude::*;
 use::bevy::window::PrimaryWindow;
 use::rand::*;
+use crate::controlls::*;
 
 pub struct PlanetCreationPlugin;
 
@@ -11,10 +12,10 @@ impl Plugin for PlanetCreationPlugin {
     }
 }
 
-const PLANET_COLORS: [bevy::prelude::LinearRgba; 2] = [LinearRgba::rgb(0.14, 0.83, 0.81), LinearRgba::rgb(0.4, 0.14, 0.83)];
-const MAX_VELOCITY: f32 = 1.0;
-const MIN_DENSITY: f32 = 0.2;
-const MAX_DENSITY: f32 = 5.0;
+pub const PLANET_COLORS: [bevy::prelude::LinearRgba; 2] = [LinearRgba::rgb(0.14, 0.83, 0.81), LinearRgba::rgb(0.4, 0.14, 0.83)];
+pub const MAX_VELOCITY: f32 = 1.0;
+pub const MIN_DENSITY: f32 = 0.2;
+pub const MAX_DENSITY: f32 = 5.0;
 
 
 
@@ -38,6 +39,17 @@ pub struct Mass{
 }
 
 #[derive(Component)]
+pub struct Scale{
+    pub delta: f32
+}
+
+#[derive(Component)]
+pub struct Position{
+    pub x: f32,
+    pub y: f32
+}
+
+#[derive(Component)]
 pub struct AbsorbTimer(pub f32);
 
 
@@ -47,7 +59,8 @@ fn create_planets_on_click(
     mut materials: ResMut<Assets<ColorMaterial>>,
     mouse_input: Res<ButtonInput<MouseButton>>,
     window: Query<&mut Window, With<PrimaryWindow>>,
-    mut planets_forming: Query<(Entity, &Forming, &mut Transform, &mut Mass)>
+    mut planets_forming: Query<(Entity, &Forming, &mut Transform, &mut Mass, &mut Scale)>,
+    zoom: Res<Zoom>,
 ){
     let mut rng = rand::rng();
 
@@ -57,8 +70,8 @@ fn create_planets_on_click(
 
     if mouse_input.just_pressed(MouseButton::Left) && planets_forming.iter().len() < 1{
         //create planet
-        let x = mouse_position.unwrap().x - window.width() / 2.0;
-        let y = -(mouse_position.unwrap().y - window.height() / 2.0);
+        let x = (mouse_position.unwrap().x - window.width() / 2.0) / (zoom.0 * ZOOM_SCALE);
+        let y = -(mouse_position.unwrap().y - window.height() / 2.0) / (zoom.0 * ZOOM_SCALE);
 
         let vel_x = rng.random_range(-MAX_VELOCITY..MAX_VELOCITY);
         let vel_y = rng.random_range(-MAX_VELOCITY..MAX_VELOCITY);
@@ -74,15 +87,19 @@ fn create_planets_on_click(
             Transform::from_xyz(x, y, 5.0),
             Velocity{ x: vel_x, y: vel_y },
             Mass{ mass: 0.0, density: dens, debris_multiplier: 1 },
+            Scale{ delta: 1.0 },
+            Position{ x: x, y: y },
             AbsorbTimer( 0.0 )
         ));
     }
     else if mouse_input.pressed(MouseButton::Left){
         //expand planet
 
-        if let Some((_, _, mut transform, mut mass)) = planets_forming.iter_mut().next(){
-            transform.scale.x += 1.0;
-            transform.scale.y += 1.0;
+        if let Some((_, _, mut transform, mut mass, mut scale)) = planets_forming.iter_mut().next(){
+
+
+
+            scale.delta += 1.0;
 
             mass.mass += mass.density;
 
@@ -93,7 +110,7 @@ fn create_planets_on_click(
     }
     else if mouse_input.just_released(MouseButton::Left){
         //allow gravity to act
-        if let Some((planet, _, _, _)) = planets_forming.iter().next(){
+        if let Some((planet, _, _, _, _)) = planets_forming.iter().next(){
             commands.entity(planet).remove::<Forming>();
             commands.entity(planet).insert(Formed);
         }

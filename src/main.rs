@@ -2,10 +2,12 @@ use bevy::prelude::*;
 use crate::hello_world::HelloWorldPlugin;
 use crate::planet_creation::PlanetCreationPlugin;
 use crate::simulation::SimulationPlugin;
+use crate::controlls::ControllsPlugin;
 
 mod hello_world;
 mod planet_creation;
 mod simulation;
+mod controlls;
 
 fn main() {
     App::new()
@@ -13,6 +15,7 @@ fn main() {
         .add_plugins(HelloWorldPlugin)
         .add_plugins(PlanetCreationPlugin)
         .add_plugins(SimulationPlugin)
+        .add_plugins(ControllsPlugin)
         .add_systems(Startup, setup)
         //.add_systems(Update, update)
         .run();
