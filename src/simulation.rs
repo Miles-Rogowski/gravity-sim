@@ -1,4 +1,5 @@
 use::bevy::prelude::*;
+use bevy::window::PrimaryWindow;
 use crate::planet_creation::*;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -12,7 +13,8 @@ impl Plugin for SimulationPlugin {
         app
         .add_systems(Startup, setup)
         .add_systems(Update, update)
-        .add_systems(Update, update_absorb_timers);
+        .add_systems(Update, update_absorb_timers)
+        .add_systems(Update, remove_outside_planets);
     }
 }
 
@@ -173,6 +175,38 @@ fn update_absorb_timers(
             timer.0 -= 15.0 * time.delta_secs();
         }else{
             timer.0 = 0.0;
+        }
+    }
+}
+
+fn remove_outside_planets(
+    planets: Query<(Entity, &Transform)>,
+    mut commands: Commands,
+    window: Query<&Window, With<PrimaryWindow>>,
+){
+    let window = window.single().unwrap();
+
+    let width = window.width();
+    let height = window.height();
+
+
+    for planet in planets{
+        if planet.1.translation.x > width{
+            commands.entity(planet.0).despawn();
+            println!("Removed planet at {}, {}", planet.1.translation.x, planet.1.translation.y);
+        }
+        else if planet.1.translation.x < -width{
+            commands.entity(planet.0).despawn();
+            println!("Removed planet at {}, {}", planet.1.translation.x, planet.1.translation.y);
+        }
+
+        if planet.1.translation.y > height{
+            commands.entity(planet.0).despawn();
+            println!("Removed planet at {}, {}", planet.1.translation.x, planet.1.translation.y);
+        }
+        else if planet.1.translation.y < -height{
+            commands.entity(planet.0).despawn();
+            println!("Removed planet at {}, {}", planet.1.translation.x, planet.1.translation.y);
         }
     }
 }
