@@ -13,6 +13,8 @@ impl Plugin for PlanetCreationPlugin {
 
 const PLANET_COLORS: [bevy::prelude::LinearRgba; 2] = [LinearRgba::rgb(0.14, 0.83, 0.81), LinearRgba::rgb(0.4, 0.14, 0.83)];
 const MAX_VELOCITY: f32 = 1.0;
+const MIN_DENSITY: f32 = 0.2;
+const MAX_DENSITY: f32 = 5.0;
 
 
 
@@ -30,9 +32,13 @@ pub struct Velocity{
 
 #[derive(Component)]
 pub struct Mass{
-    pub mass: f32
+    pub mass: f32,
+    pub density: f32,
+    pub debris_multiplier: i32
 }
 
+#[derive(Component)]
+pub struct AbsorbTimer(pub f32);
 
 
 fn create_planets_on_click(
@@ -59,13 +65,16 @@ fn create_planets_on_click(
         
         let color = PLANET_COLORS[rng.random_range(0..PLANET_COLORS.len())];
 
+        let dens = rng.random_range(MIN_DENSITY..MAX_DENSITY);
+
         commands.spawn((
             Forming{},
             Mesh2d(meshes.add(Circle::new(1.0))),
             MeshMaterial2d(materials.add(ColorMaterial::from(Color::from(color)))),
             Transform::from_xyz(x, y, 5.0),
             Velocity{ x: vel_x, y: vel_y },
-            Mass{ mass: 0.0 },
+            Mass{ mass: 0.0, density: dens, debris_multiplier: 1 },
+            AbsorbTimer( 0.0 )
         ));
     }
     else if mouse_input.pressed(MouseButton::Left){
@@ -75,9 +84,9 @@ fn create_planets_on_click(
             transform.scale.x += 1.0;
             transform.scale.y += 1.0;
 
-            mass.mass += 1.0;
+            mass.mass += mass.density;
 
-            println!("{}", mass.mass);
+            //println!("{}", mass.mass);
         }
 
 
