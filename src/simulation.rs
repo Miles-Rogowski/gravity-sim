@@ -13,8 +13,7 @@ impl Plugin for SimulationPlugin {
         app
         .add_systems(Startup, setup)
         .add_systems(Update, update)
-        .add_systems(Update, update_absorb_timers)
-        .add_systems(Update, remove_outside_planets);
+        .add_systems(Update, update_absorb_timers);
     }
 }
 
@@ -46,6 +45,7 @@ fn update(
     mut planets: Query<(Entity, &Formed, &mut Velocity, &mut Transform, &Mass, &MeshMaterial2d<ColorMaterial>, &AbsorbTimer)>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
+    window: Query<&Window, With<PrimaryWindow>>,
 ){
     let mut rng = rand::rng();
 
@@ -53,6 +53,11 @@ fn update(
 
     let mut combinations: HashMap<Entity, CombinationEntity> = HashMap::new();
     let mut entities_to_despawn: HashSet<Entity> = HashSet::new();
+
+    let window = window.single().unwrap();
+
+    let width = window.width();
+    let height = window.height();
 
     if planets.iter().len() > 1 {
         for [a, b] in planets.iter_combinations::<2>(){
@@ -102,8 +107,8 @@ fn update(
             a_acceleration.y -= (force * norm_y) / a.4.mass * b.4.debris_multiplier as f32; // dont move a when b is bebris
 
             let b_acceleration = accelerations.entry(b.0).or_insert(Vec2::ZERO);
-            b_acceleration.x += (force * norm_x) / b.4.mass;
-            b_acceleration.y += (force * norm_y) / b.4.mass;
+            b_acceleration.x += (force * norm_x) / b.4.mass * a.4.debris_multiplier as f32; // dont move b when a is bebris
+            b_acceleration.y += (force * norm_y) / b.4.mass * a.4.debris_multiplier as f32; // dont move b when a is bebris
 
 
         }
@@ -130,8 +135,11 @@ fn update(
             planet.3.scale.x = r3;
             planet.3.scale.y = r3;
 
-            planet.2.x += combinations[&planet.0].vel_x / combinations[&planet.0].mass * combinations[&planet.0].debris_multiplier as f32;
-            planet.2.y += combinations[&planet.0].vel_y / combinations[&planet.0].mass * combinations[&planet.0].debris_multiplier as f32;
+            if(combinations[&planet.0].debris_multiplier != 0){
+                planet.2.x = (planet.2.x * planet.4.mass + combinations[&planet.0].vel_x * combinations[&planet.0].mass) / (planet.4.mass + combinations[&planet.0].mass) as f32;
+                planet.2.y = (planet.2.y * planet.4.mass + combinations[&planet.0].vel_y * combinations[&planet.0].mass) / (planet.4.mass + combinations[&planet.0].mass) as f32;
+            }
+            
 
             //create debris
 
@@ -161,8 +169,41 @@ fn update(
     }
 
     for (_a, b) in combinations{
-        commands.entity(b.entity).despawn();
+        if !entities_to_despawn.contains(&b.entity){
+            entities_to_despawn.insert(b.entity);
+            commands.entity(b.entity).despawn();
+        }
+        
     }
+
+    for mut entity in &entities_to_despawn{
+        commands.entity(*entity).despawn();
+    }
+
+    //despawn entities outside screen * 2
+
+    for planet in planets{
+        if !entities_to_despawn.contains(&planet.0){
+            if planet.3.translation.x > width{
+                commands.entity(planet.0).despawn();
+                println!("Removed planet at {}, {}", planet.3.translation.x, planet.3.translation.y);
+            }
+            else if planet.3.translation.x < -width{
+                commands.entity(planet.0).despawn();
+                println!("Removed planet at {}, {}", planet.3.translation.x, planet.3.translation.y);
+            }
+
+            if planet.3.translation.y > height{
+                commands.entity(planet.0).despawn();
+                println!("Removed planet at {}, {}", planet.3.translation.x, planet.3.translation.y);
+            }
+            else if planet.3.translation.y < -height{
+                commands.entity(planet.0).despawn();
+                println!("Removed planet at {}, {}", planet.3.translation.x, planet.3.translation.y);
+            }
+        }
+    }
+
 }
 
 
@@ -175,38 +216,6 @@ fn update_absorb_timers(
             timer.0 -= 15.0 * time.delta_secs();
         }else{
             timer.0 = 0.0;
-        }
-    }
-}
-
-fn remove_outside_planets(
-    planets: Query<(Entity, &Transform)>,
-    mut commands: Commands,
-    window: Query<&Window, With<PrimaryWindow>>,
-){
-    let window = window.single().unwrap();
-
-    let width = window.width();
-    let height = window.height();
-
-
-    for planet in planets{
-        if planet.1.translation.x > width{
-            commands.entity(planet.0).despawn();
-            println!("Removed planet at {}, {}", planet.1.translation.x, planet.1.translation.y);
-        }
-        else if planet.1.translation.x < -width{
-            commands.entity(planet.0).despawn();
-            println!("Removed planet at {}, {}", planet.1.translation.x, planet.1.translation.y);
-        }
-
-        if planet.1.translation.y > height{
-            commands.entity(planet.0).despawn();
-            println!("Removed planet at {}, {}", planet.1.translation.x, planet.1.translation.y);
-        }
-        else if planet.1.translation.y < -height{
-            commands.entity(planet.0).despawn();
-            println!("Removed planet at {}, {}", planet.1.translation.x, planet.1.translation.y);
         }
     }
 }
