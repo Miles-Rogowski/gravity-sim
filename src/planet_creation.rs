@@ -12,13 +12,28 @@ impl Plugin for PlanetCreationPlugin {
 }
 
 const PLANET_COLORS: [bevy::prelude::LinearRgba; 2] = [LinearRgba::rgb(0.14, 0.83, 0.81), LinearRgba::rgb(0.4, 0.14, 0.83)];
-
-
+const MAX_VELOCITY: f32 = 1.0;
 
 
 
 #[derive(Component)]
-struct Forming;
+pub struct Forming;
+
+#[derive(Component)]
+pub struct Formed;
+
+#[derive(Component)]
+pub struct Velocity{
+    pub x: f32,
+    pub y: f32
+}
+
+#[derive(Component)]
+pub struct Mass{
+    pub mass: f32
+}
+
+
 
 fn create_planets_on_click(
     mut commands: Commands,
@@ -26,7 +41,7 @@ fn create_planets_on_click(
     mut materials: ResMut<Assets<ColorMaterial>>,
     mouse_input: Res<ButtonInput<MouseButton>>,
     window: Query<&mut Window, With<PrimaryWindow>>,
-    mut planets_forming: Query<(Entity, &Forming, &mut Transform)>
+    mut planets_forming: Query<(Entity, &Forming, &mut Transform, &mut Mass)>
 ){
     let mut rng = rand::rng();
 
@@ -34,10 +49,13 @@ fn create_planets_on_click(
     let mouse_position = window.cursor_position();
 
 
-    if mouse_input.just_pressed(MouseButton::Left){
+    if mouse_input.just_pressed(MouseButton::Left) && planets_forming.iter().len() < 1{
         //create planet
         let x = mouse_position.unwrap().x - window.width() / 2.0;
         let y = -(mouse_position.unwrap().y - window.height() / 2.0);
+
+        let vel_x = rng.random_range(-MAX_VELOCITY..MAX_VELOCITY);
+        let vel_y = rng.random_range(-MAX_VELOCITY..MAX_VELOCITY);
         
         let color = PLANET_COLORS[rng.random_range(0..PLANET_COLORS.len())];
 
@@ -46,25 +64,29 @@ fn create_planets_on_click(
             Mesh2d(meshes.add(Circle::new(1.0))),
             MeshMaterial2d(materials.add(ColorMaterial::from(Color::from(color)))),
             Transform::from_xyz(x, y, 5.0),
+            Velocity{ x: vel_x, y: vel_y },
+            Mass{ mass: 0.0 },
         ));
     }
     else if mouse_input.pressed(MouseButton::Left){
         //expand planet
-        if mouse_position.is_some(){
-            println!("{}, {}", mouse_position.unwrap().x, mouse_position.unwrap().y);
-        }
 
-        if let Some((_, _, mut transform)) = planets_forming.iter_mut().next(){
-            transform.scale.x += 2.5;
-            transform.scale.y += 2.5;
+        if let Some((_, _, mut transform, mut mass)) = planets_forming.iter_mut().next(){
+            transform.scale.x += 1.0;
+            transform.scale.y += 1.0;
+
+            mass.mass += 1.0;
+
+            println!("{}", mass.mass);
         }
 
 
     }
     else if mouse_input.just_released(MouseButton::Left){
         //allow gravity to act
-        if let Some((planet, _, _)) = planets_forming.iter().next(){
+        if let Some((planet, _, _, _)) = planets_forming.iter().next(){
             commands.entity(planet).remove::<Forming>();
+            commands.entity(planet).insert(Formed);
         }
 
     }
