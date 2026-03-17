@@ -27,5 +27,8 @@ fn main() {
 fn setup(
     mut commands: Commands
 ){
-    commands.spawn(Camera2d::default());
+    commands.spawn((
+        Camera2d::default(),
+        Transform::from_xyz(0.0, 0.0, 0.0)
+    ));
 }

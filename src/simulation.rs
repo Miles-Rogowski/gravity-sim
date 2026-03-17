@@ -63,8 +63,8 @@ fn update(
             //force = 55.743((mass1*mass2)/distance^2)
 
 
-            let distance_x = a.8.x - b.8.x;
-            let distance_y = a.8.y - b.8.y;
+            let distance_x = a.3.translation.x - b.3.translation.x;
+            let distance_y = a.3.translation.y - b.3.translation.y;
 
             let distance = distance_x * distance_x + distance_y * distance_y;
 
@@ -80,12 +80,12 @@ fn update(
                 if !combinations.contains_key(&a.0) && !combinations.contains_key(&b.0) && !entities_to_despawn.contains(&a.0)  && !entities_to_despawn.contains(&b.0) && !combinations.contains_key(&b.0) && a.6.0 <= 0.0 && b.6.0 <= 0.0{
 
                     if a.7.delta > b.7.delta{
-                        let b_pair = CombinationEntity{ entity: b.0, scale: b.7.delta, vel_x: b.2.x, vel_y: b.2.y, mass: b.4.mass, density: b.4.density, x: b.8.x, y: b.8.y, debris_multiplier: b.4.debris_multiplier};
+                        let b_pair = CombinationEntity{ entity: b.0, scale: b.7.delta, vel_x: b.2.x, vel_y: b.2.y, mass: b.4.mass, density: b.4.density, x: b.3.translation.x, y: b.3.translation.y, debris_multiplier: b.4.debris_multiplier};
                         combinations.insert(a.0, b_pair);
                         entities_to_despawn.insert(b.0);
                     }
                     else{
-                        let a_pair = CombinationEntity{ entity: a.0, scale: a.7.delta, vel_x: a.2.x, vel_y: a.2.y, mass: a.4.mass, density: b.4.density, x: b.8.x, y: b.8.y, debris_multiplier: b.4.debris_multiplier};
+                        let a_pair = CombinationEntity{ entity: a.0, scale: a.7.delta, vel_x: a.2.x, vel_y: a.2.y, mass: a.4.mass, density: b.4.density, x: b.3.translation.x, y: b.3.translation.y, debris_multiplier: b.4.debris_multiplier};
                         combinations.insert(b.0, a_pair);
                         entities_to_despawn.insert(a.0);
                     }
@@ -123,8 +123,8 @@ fn update(
         planet.2.y += accelerations.get(&planet.0).copied().unwrap_or(Vec2::ZERO).y;
 
 
-        planet.8.x += planet.2.x;
-        planet.8.y += planet.2.y;
+        planet.3.translation.x += planet.2.x;
+        planet.3.translation.y += planet.2.y;
 
         if combinations.contains_key(&planet.0){
             let r1 = planet.7.delta;
@@ -145,11 +145,11 @@ fn update(
 
             if combinations[&planet.0].mass > 10.0{
                 for _i in 0..DEBRIS_PER_COLLISION{
-                    let dx = combinations[&planet.0].x - planet.8.x;
-                    let dy = combinations[&planet.0].y - planet.8.y;
+                    let dx = combinations[&planet.0].x - planet.3.translation.x;
+                    let dy = combinations[&planet.0].y - planet.3.translation.y;
                     let distance = (dx*dx + dy*dy).sqrt();
-                    let x = (planet.8.x + dx / distance * planet.7.delta) + rng.random_range(-MAX_DEBRIS_OFFSET..MAX_DEBRIS_OFFSET);
-                    let y = ( planet.8.y + dy / distance * planet.7.delta) + rng.random_range(-MAX_DEBRIS_OFFSET..MAX_DEBRIS_OFFSET);
+                    let x = (planet.3.translation.x + dx / distance * planet.7.delta) + rng.random_range(-MAX_DEBRIS_OFFSET..MAX_DEBRIS_OFFSET);
+                    let y = ( planet.3.translation.y + dy / distance * planet.7.delta) + rng.random_range(-MAX_DEBRIS_OFFSET..MAX_DEBRIS_OFFSET);
                     let vel_x = -combinations[&planet.0].vel_x + rng.random_range(-MAX_DEBRIS_DIRECTION_OFFSET..MAX_DEBRIS_DIRECTION_OFFSET);
                     let vel_y = -combinations[&planet.0].vel_y + rng.random_range(-MAX_DEBRIS_DIRECTION_OFFSET..MAX_DEBRIS_DIRECTION_OFFSET);
                     let mass = rng.random_range(MIN_DEBRIS_MASS..MAX_DEBRIS_MASS);
