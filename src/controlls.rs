@@ -9,13 +9,12 @@ pub struct ControllsPlugin;
 impl Plugin for ControllsPlugin {
     fn build(&self, app: &mut App){
         app
-        .insert_resource(Zoom(20.0))
         .insert_resource(MouseInertia{ x: 0.0, y: 0.0 })
         .add_systems(Update, keyboard_shortcuts);
     }
 }
 
-pub const ZOOM_SCALE: f32 = 0.05;
+
 
 #[derive(Component)]
 struct ActivePlanet{
@@ -23,8 +22,6 @@ struct ActivePlanet{
     y_offset: f32
 }
 
-#[derive(Resource)]
-pub struct Zoom(pub f32);
 
 #[derive(Resource)]
 struct MouseInertia{
@@ -38,9 +35,8 @@ fn keyboard_shortcuts(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut planets: Query<(Entity, &mut Transform, &Scale, &mut Position, &mut Velocity, Option<&ActivePlanet>), Without<Camera>>,
-    mut zoom: ResMut<Zoom>,
     mut mouse_inertia: ResMut<MouseInertia>,
-    mut camera: Query<(&Camera, &GlobalTransform, &mut Transform)>,
+    mut camera: Query<(&Camera, &GlobalTransform, &mut Transform, &mut Projection)>,
     window: Query<&mut Window, With<PrimaryWindow>>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     mouse_input: Res<ButtonInput<MouseButton>>,
@@ -56,11 +52,14 @@ fn keyboard_shortcuts(
     let width = window.width();
     let height = window.height();
 
+    let Ok((camera, camera_transform, mut camera_position, mut projection)) = camera.single_mut() else { panic!("no camera!") };
+    let Projection::Orthographic(ref mut zoom) = *projection else { panic!("no projection!") };
+
     //spawn random planets
     if keyboard_input.just_pressed(KeyCode::KeyP) {
         for _i in 0..20{
-            let x = rng.random_range(-width / 2.0 / (zoom.0 * ZOOM_SCALE)..width / 2.0 / (zoom.0 * ZOOM_SCALE));
-            let y = rng.random_range(-height / 2.0 / (zoom.0 * ZOOM_SCALE)..height / 2.0) / (zoom.0 * ZOOM_SCALE);
+            let x = rng.random_range(-width / 2.0..width / 2.0) * zoom.scale + camera_position.translation.x;
+            let y = rng.random_range(-height / 2.0..height / 2.0) * zoom.scale + camera_position.translation.y;
 
             let vel_x = rng.random_range(-MAX_VELOCITY..MAX_VELOCITY);
             let vel_y = rng.random_range(-MAX_VELOCITY..MAX_VELOCITY);
@@ -90,13 +89,17 @@ fn keyboard_shortcuts(
 
     if mouse_input.just_pressed(MouseButton::Middle){
         if let Some(cursor_pos) = window.cursor_position() {
+            let cursor_pos_world = camera.viewport_to_world_2d(camera_transform, cursor_pos).unwrap();
             for mut planet in planets.iter_mut(){
 
-                let dx = cursor_pos.x - planet.1.translation.x;
-                let dy = cursor_pos.y - planet.1.translation.y;
+                println!("test1");
+
+                let dx = cursor_pos_world.x - planet.1.translation.x;
+                let dy = cursor_pos_world.y - planet.1.translation.y;
                 let r = planet.1.scale.x;
 
                 if dx * dx + dy * dy <= r * r{
+                    println!("test2");
                     commands.entity(planet.0).insert(ActivePlanet{ x_offset: dx, y_offset: dy });
                 }
             }
@@ -110,29 +113,30 @@ fn keyboard_shortcuts(
         //drag planet
 
         if let Some(cursor_pos) = window.cursor_position() {
+            let cursor_pos_world = camera.viewport_to_world_2d(camera_transform, cursor_pos).unwrap();
             for mut planet in planets.iter_mut(){
                 if planet.5.is_some(){
                     planet.4.x = 0.0;
                     planet.4.y = 0.0;
-                    planet.3.x = (cursor_pos.x - planet.5.unwrap().x_offset) / (zoom.0 * ZOOM_SCALE);
-                    planet.3.y = (cursor_pos.y - planet.5.unwrap().y_offset) / (zoom.0 * ZOOM_SCALE);
+                    planet.1.translation.x = (cursor_pos_world.x - planet.5.unwrap().x_offset);
+                    planet.1.translation.y = (cursor_pos_world.y - planet.5.unwrap().y_offset);
                 }
             }
         
         }
 }
     else{
-        if mouse_inertia.x != 0.0 && mouse_inertia.y != 0.0{
-            //add to planet velocity
+        //add to planet velocity
 
-            if let Some(cursor_pos) = window.cursor_position() {
-                for mut planet in planets.iter_mut(){
-                    if planet.5.is_some(){
-                        planet.4.x += mouse_inertia.x / (zoom.0 * ZOOM_SCALE);
-                        planet.4.y -= mouse_inertia.y / (zoom.0 * ZOOM_SCALE);
-
-                        commands.entity(planet.0).remove::<ActivePlanet>();
+        if let Some(cursor_pos) = window.cursor_position() {
+            for mut planet in planets.iter_mut(){
+                if planet.5.is_some(){
+                    if mouse_inertia.x != 0.0 && mouse_inertia.y != 0.0{
+                        planet.4.x += mouse_inertia.x / 2.0;
+                        planet.4.y -= mouse_inertia.y / 2.0;
                     }
+
+                    commands.entity(planet.0).remove::<ActivePlanet>();
                 }
             }
         }
@@ -144,29 +148,26 @@ fn keyboard_shortcuts(
 
     //panning
     if mouse_input.pressed(MouseButton::Right){
-        if let Ok((camera, camera_transform, mut transform)) = camera.single_mut() {
-            transform.translation.x -= mouse_motion.delta.x / (zoom.0 * ZOOM_SCALE);
-            transform.translation.y += mouse_motion.delta.y / (zoom.0 * ZOOM_SCALE);
-        }
+        camera_position.translation.x -= mouse_motion.delta.x * zoom.scale;
+        camera_position.translation.y += mouse_motion.delta.y * zoom.scale;
     }
 
 
     //zooming
-    zoom.0 += mouse_scroll.delta.y;
 
-    if zoom.0 < 1.0{
-        zoom.0 = 1.0;
+    zoom.scale -= mouse_scroll.delta.y;
+    if zoom.scale < 1.0{
+        zoom.scale = 1.0;
     }
-    else if zoom.0 > 40.0{
-        zoom.0 = 40.0;
+    else if zoom.scale > 40.0{
+        zoom.scale = 40.0;
     }
+
 
     for mut planet in planets.iter_mut(){
-        planet.1.scale.x = planet.2.delta * zoom.0 * ZOOM_SCALE;
-        planet.1.scale.y = planet.2.delta * zoom.0 * ZOOM_SCALE;
+        planet.1.scale.x = planet.2.delta;
+        planet.1.scale.y = planet.2.delta;
 
-        //planet.1.translation.x = planet.3.x * zoom.0 * ZOOM_SCALE;
-        //planet.1.translation.y = planet.3.y * zoom.0 * ZOOM_SCALE;
     }
 
 

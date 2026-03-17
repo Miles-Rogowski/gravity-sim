@@ -60,21 +60,21 @@ fn create_planets_on_click(
     mouse_input: Res<ButtonInput<MouseButton>>,
     window: Query<&mut Window, With<PrimaryWindow>>,
     mut planets_forming: Query<(Entity, &Forming, &mut Transform, &mut Mass, &mut Scale), Without<Camera>>,
-    zoom: Res<Zoom>,
-    mut camera: Query<(&Camera, &GlobalTransform, &mut Transform)>,
+    camera: Query<(&Camera, &GlobalTransform, &Transform, &Projection)>,
 ){
     let mut rng = rand::rng();
 
     let window = window.single().unwrap();
     let mouse_position = window.cursor_position();
 
-    let Ok((_, _, mut camera_position)) = camera.single_mut() else { todo!() };
+    let Ok((camera, camera_transform, camera_position, projection)) = camera.single() else { panic!("no camera!") };
+    let Projection::Orthographic(ref zoom) = *projection else { panic!("no projection!") };
 
     if mouse_input.just_pressed(MouseButton::Left) && planets_forming.iter().len() < 1{
         //create planet
 
-        let x = (mouse_position.unwrap().x - window.width() / 2.0) / (zoom.0 * ZOOM_SCALE) + camera_position.translation.x;
-        let y = -(mouse_position.unwrap().y - window.height() / 2.0) / (zoom.0 * ZOOM_SCALE) + camera_position.translation.y;
+        let x = (mouse_position.unwrap().x - window.width() / 2.0) * zoom.scale + camera_position.translation.x;
+        let y = -(mouse_position.unwrap().y - window.height() / 2.0) * zoom.scale + camera_position.translation.y;
 
         let vel_x = rng.random_range(-MAX_VELOCITY..MAX_VELOCITY);
         let vel_y = rng.random_range(-MAX_VELOCITY..MAX_VELOCITY);
