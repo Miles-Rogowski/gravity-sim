@@ -68,6 +68,9 @@ fn update(
 
             let distance = distance_x * distance_x + distance_y * distance_y;
 
+            if distance == 0.0{ 
+                continue;
+            }
             let mut force = 55.743*((a.4.mass*b.4.mass)/distance);
 
             if distance.sqrt() < a.7.delta + b.7.delta{
@@ -151,7 +154,7 @@ fn update(
                     let vel_y = -combinations[&planet.0].vel_y + rng.random_range(-MAX_DEBRIS_DIRECTION_OFFSET..MAX_DEBRIS_DIRECTION_OFFSET);
                     let mass = rng.random_range(MIN_DEBRIS_MASS..MAX_DEBRIS_MASS);
                     let density = combinations[&planet.0].density;
-                    let scale = mass / density * 2.0;
+                    let scale = combinations[&planet.0].scale / 20.0;
 
 
                     commands.spawn((

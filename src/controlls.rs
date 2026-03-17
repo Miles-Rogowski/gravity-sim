@@ -10,22 +10,37 @@ impl Plugin for ControllsPlugin {
     fn build(&self, app: &mut App){
         app
         .insert_resource(Zoom(20.0))
+        .insert_resource(MouseInertia{ x: 0.0, y: 0.0 })
         .add_systems(Update, keyboard_shortcuts);
     }
 }
 
 pub const ZOOM_SCALE: f32 = 0.05;
 
+#[derive(Component)]
+struct ActivePlanet{
+    x_offset: f32,
+    y_offset: f32
+}
+
 #[derive(Resource)]
 pub struct Zoom(pub f32);
+
+#[derive(Resource)]
+struct MouseInertia{
+    x: f32,
+    y: f32
+}
 
 
 fn keyboard_shortcuts(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
-    mut planets: Query<(Entity, &mut Transform, &Scale, &mut Position)>,
+    mut planets: Query<(Entity, &mut Transform, &Scale, &mut Position, &mut Velocity, Option<&ActivePlanet>)>,
     mut zoom: ResMut<Zoom>,
+    mut mouse_inertia: ResMut<MouseInertia>,
+    camera: Query<(&Camera, &GlobalTransform)>,
     window: Query<&mut Window, With<PrimaryWindow>>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     mouse_input: Res<ButtonInput<MouseButton>>,
@@ -36,6 +51,7 @@ fn keyboard_shortcuts(
     let mut rng = rand::rng();
 
     let window = window.single().unwrap();
+
 
     let width = window.width();
     let height = window.height();
@@ -72,6 +88,78 @@ fn keyboard_shortcuts(
         
     }
 
+    if mouse_input.just_pressed(MouseButton::Middle){
+        if let Some(cursor_pos) = window.cursor_position() {
+            if let Ok((camera, camera_transform)) = camera.single() {
+                let world_pos = camera.viewport_to_world_2d(camera_transform, cursor_pos).unwrap();
+                for mut planet in planets.iter_mut(){
+
+                    let dx = world_pos.x - planet.1.translation.x;
+                    let dy = world_pos.y - planet.1.translation.y;
+                    let r = planet.1.scale.x;
+
+                    if dx * dx + dy * dy <= r * r{
+                        commands.entity(planet.0).insert(ActivePlanet{ x_offset: dx, y_offset: dy });
+                    }
+                }
+            }
+        }
+    }
+
+    if mouse_input.pressed(MouseButton::Middle){
+        mouse_inertia.x = mouse_motion.delta.x;
+        mouse_inertia.y = mouse_motion.delta.y;
+
+        //drag planet
+
+        if let Some(cursor_pos) = window.cursor_position() {
+            if let Ok((camera, camera_transform)) = camera.single() {
+                let world_pos = camera.viewport_to_world_2d(camera_transform, cursor_pos).unwrap();
+
+                for mut planet in planets.iter_mut(){
+                    if planet.5.is_some(){
+                        planet.4.x = 0.0;
+                        planet.4.y = 0.0;
+                        planet.3.x = (world_pos.x - planet.5.unwrap().x_offset) / (zoom.0 * ZOOM_SCALE);
+                        planet.3.y = (world_pos.y - planet.5.unwrap().y_offset) / (zoom.0 * ZOOM_SCALE);
+                    }
+                }
+            
+            }
+        }
+    }
+    else{
+        if mouse_inertia.x != 0.0 && mouse_inertia.y != 0.0{
+            //add to planet velocity
+
+            if let Some(cursor_pos) = window.cursor_position() {
+            if let Ok((camera, camera_transform)) = camera.single() {
+                let world_pos = camera.viewport_to_world_2d(camera_transform, cursor_pos).unwrap();
+
+                for mut planet in planets.iter_mut(){
+                    if planet.5.is_some(){
+                        planet.4.x = 0.0;
+                        planet.4.y = 0.0;
+                        planet.4.x += mouse_inertia.x / (zoom.0 * ZOOM_SCALE);
+                        planet.4.y -= mouse_inertia.y / (zoom.0 * ZOOM_SCALE);
+
+                        commands.entity(planet.0).remove::<ActivePlanet>();
+                    }
+                }
+            
+            }
+        }
+
+            
+
+        }
+
+        mouse_inertia.x = 0.0;
+        mouse_inertia.y = 0.0;
+    }
+
+
+    //panning
     if mouse_input.pressed(MouseButton::Right){
         for mut planet in planets.iter_mut(){
             planet.3.x += mouse_motion.delta.x / (zoom.0 * ZOOM_SCALE);
@@ -79,6 +167,8 @@ fn keyboard_shortcuts(
         }
     }
 
+
+    //zooming
     zoom.0 += mouse_scroll.delta.y;
 
     if zoom.0 < 1.0{
@@ -87,8 +177,6 @@ fn keyboard_shortcuts(
     else if zoom.0 > 40.0{
         zoom.0 = 40.0;
     }
-
-    println!("zoom: {}, scroll: {}", zoom.0, mouse_scroll.delta.y);
 
     for mut planet in planets.iter_mut(){
         planet.1.scale.x = planet.2.delta * zoom.0 * ZOOM_SCALE;

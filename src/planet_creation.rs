@@ -95,7 +95,7 @@ fn create_planets_on_click(
     else if mouse_input.pressed(MouseButton::Left){
         //expand planet
 
-        if let Some((_, _, mut transform, mut mass, mut scale)) = planets_forming.iter_mut().next(){
+        if let Some((_, _, _, mut mass, mut scale)) = planets_forming.iter_mut().next(){
 
 
 
