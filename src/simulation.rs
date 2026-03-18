@@ -37,7 +37,7 @@ const DEBRIS_PER_COLLISION: i32 = 10;
 
 
 fn update(
-    mut planets: Query<(Entity, &Formed, &mut Velocity, &mut Transform, &Mass, &MeshMaterial2d<ColorMaterial>, &AbsorbTimer, &mut Scale, &mut Position), Without<Camera>>,
+    mut planets: Query<(Entity, &Formed, &mut Velocity, &mut Transform, &Mass, &MeshMaterial2d<ColorMaterial>, &AbsorbTimer, &mut Scale), Without<Camera>>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     camera: Query<(&Camera, &GlobalTransform, &Transform, &Projection)>,
@@ -167,7 +167,6 @@ fn update(
                         Velocity{ x: vel_x, y: vel_y },
                         Mass{ mass: mass, density: density, debris_multiplier: 0 },
                         Scale{ delta: scale },
-                        Position{ x: x, y: y },
                         AbsorbTimer( 5.0 )
                     ));
                 }
@@ -193,20 +192,20 @@ fn update(
 
     for planet in planets{
         if !entities_to_despawn.contains(&planet.0){
-            if planet.8.x > width * zoom.scale + camera_position.translation.x{
+            if planet.3.translation.x > width * zoom.scale + camera_position.translation.x{
                 commands.entity(planet.0).despawn();
                 println!("Removed planet at {}, {}", planet.3.translation.x, planet.3.translation.y);
             }
-            else if planet.8.x < -width * zoom.scale + camera_position.translation.x{
+            else if planet.3.translation.x < -width * zoom.scale + camera_position.translation.x{
                 commands.entity(planet.0).despawn();
                 println!("Removed planet at {}, {}", planet.3.translation.x, planet.3.translation.y);
             }
 
-            if planet.8.y > height * zoom.scale + camera_position.translation.y{
+            if planet.3.translation.y > height * zoom.scale + camera_position.translation.y{
                 commands.entity(planet.0).despawn();
                 println!("Removed planet at {}, {}", planet.3.translation.x, planet.3.translation.y);
             }
-            else if planet.8.y < -height * zoom.scale + camera_position.translation.y{
+            else if planet.3.translation.y < -height * zoom.scale + camera_position.translation.y{
                 commands.entity(planet.0).despawn();
                 println!("Removed planet at {}, {}", planet.3.translation.x, planet.3.translation.y);
             }

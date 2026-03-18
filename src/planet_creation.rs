@@ -42,11 +42,6 @@ pub struct Scale{
     pub delta: f32
 }
 
-#[derive(Component)]
-pub struct Position{
-    pub x: f32,
-    pub y: f32
-}
 
 #[derive(Component)]
 pub struct AbsorbTimer(pub f32);
@@ -90,7 +85,6 @@ fn create_planets_on_click(
             Velocity{ x: vel_x, y: vel_y },
             Mass{ mass: 0.0, density: dens, debris_multiplier: 1 },
             Scale{ delta: 1.0 },
-            Position{ x: x, y: y },
             AbsorbTimer( 0.0 )
         ));
     }

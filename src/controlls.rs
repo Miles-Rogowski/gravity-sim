@@ -34,7 +34,7 @@ fn keyboard_shortcuts(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
-    mut planets: Query<(Entity, &mut Transform, &Scale, &mut Position, &mut Velocity, Option<&ActivePlanet>), Without<Camera>>,
+    mut planets: Query<(Entity, &mut Transform, &Scale, &mut Velocity, Option<&ActivePlanet>), Without<Camera>>,
     mut mouse_inertia: ResMut<MouseInertia>,
     mut camera: Query<(&Camera, &GlobalTransform, &mut Transform, &mut Projection)>,
     window: Query<&mut Window, With<PrimaryWindow>>,
@@ -80,7 +80,6 @@ fn keyboard_shortcuts(
                 Velocity{ x: vel_x, y: vel_y },
                 Mass{ mass: mass, density: dens, debris_multiplier: 1 },
                 Scale{ delta: mass/dens * 2.0 },
-                Position{ x: x, y: y },
                 AbsorbTimer( 0.0 )
             ));
         }
@@ -112,11 +111,11 @@ fn keyboard_shortcuts(
         if let Some(cursor_pos) = window.cursor_position() {
             let cursor_pos_world = camera.viewport_to_world_2d(camera_transform, cursor_pos).unwrap();
             for mut planet in planets.iter_mut(){
-                if planet.5.is_some(){
-                    planet.4.x = 0.0;
-                    planet.4.y = 0.0;
-                    planet.1.translation.x = cursor_pos_world.x - planet.5.unwrap().x_offset;
-                    planet.1.translation.y = cursor_pos_world.y - planet.5.unwrap().y_offset;
+                if planet.4.is_some(){
+                    planet.3.x = 0.0;
+                    planet.3.y = 0.0;
+                    planet.1.translation.x = cursor_pos_world.x - planet.4.unwrap().x_offset;
+                    planet.1.translation.y = cursor_pos_world.y - planet.4.unwrap().y_offset;
                 }
             }
         
@@ -125,10 +124,10 @@ fn keyboard_shortcuts(
     else{
         //add to planet velocity
         for mut planet in planets.iter_mut(){
-            if planet.5.is_some(){
+            if planet.4.is_some(){
                 if mouse_inertia.x != 0.0 && mouse_inertia.y != 0.0{
-                    planet.4.x += mouse_inertia.x / 2.0;
-                    planet.4.y -= mouse_inertia.y / 2.0;
+                    planet.3.x += mouse_inertia.x / 2.0;
+                    planet.3.y -= mouse_inertia.y / 2.0;
                 }
 
                 commands.entity(planet.0).remove::<ActivePlanet>();
