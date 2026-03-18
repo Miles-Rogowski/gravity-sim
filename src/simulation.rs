@@ -103,14 +103,18 @@ fn update(
             let norm_x = distance_x / distance.sqrt();
             let norm_y = distance_y / distance.sqrt();
 
+            if a.4.mass == 0.0 || b.4.mass == 0.0{
+                continue;
+            }
+
 
             let a_acceleration = accelerations.entry(a.0).or_insert(Vec2::ZERO);
-            a_acceleration.x -= (force * norm_x) / a.4.mass * b.4.debris_multiplier as f32; // dont move a when b is debris
-            a_acceleration.y -= (force * norm_y) / a.4.mass * b.4.debris_multiplier as f32; // dont move a when b is bebris
+            a_acceleration.x -= (force * norm_x / a.4.mass) * b.4.debris_multiplier as f32; // dont move a when b is debris
+            a_acceleration.y -= (force * norm_y / a.4.mass) * b.4.debris_multiplier as f32; // dont move a when b is bebris
 
             let b_acceleration = accelerations.entry(b.0).or_insert(Vec2::ZERO);
-            b_acceleration.x += (force * norm_x) / b.4.mass * a.4.debris_multiplier as f32; // dont move b when a is bebris
-            b_acceleration.y += (force * norm_y) / b.4.mass * a.4.debris_multiplier as f32; // dont move b when a is bebris
+            b_acceleration.x += (force * norm_x / b.4.mass) * a.4.debris_multiplier as f32; // dont move b when a is bebris
+            b_acceleration.y += (force * norm_y / b.4.mass) * a.4.debris_multiplier as f32; // dont move b when a is bebris
 
 
         }
@@ -137,6 +141,10 @@ fn update(
             planet.7.delta = r3;
             planet.7.delta = r3;
 
+            if planet.4.mass == 0.0 || combinations[&planet.0].mass == 0.0{
+                continue;
+            }
+
             if combinations[&planet.0].debris_multiplier != 0{
                 planet.2.x = (planet.2.x * planet.4.mass + combinations[&planet.0].vel_x * combinations[&planet.0].mass) / (planet.4.mass + combinations[&planet.0].mass) as f32;
                 planet.2.y = (planet.2.y * planet.4.mass + combinations[&planet.0].vel_y * combinations[&planet.0].mass) / (planet.4.mass + combinations[&planet.0].mass) as f32;
@@ -150,6 +158,11 @@ fn update(
                     let dx = combinations[&planet.0].x - planet.3.translation.x;
                     let dy = combinations[&planet.0].y - planet.3.translation.y;
                     let distance = (dx*dx + dy*dy).sqrt();
+
+                    if distance == 0.0{
+                        continue;
+                    }
+
                     let x = (planet.3.translation.x + dx / distance * planet.7.delta) + rng.random_range(-MAX_DEBRIS_OFFSET..MAX_DEBRIS_OFFSET);
                     let y = ( planet.3.translation.y + dy / distance * planet.7.delta) + rng.random_range(-MAX_DEBRIS_OFFSET..MAX_DEBRIS_OFFSET);
                     let vel_x = -combinations[&planet.0].vel_x + rng.random_range(-MAX_DEBRIS_DIRECTION_OFFSET..MAX_DEBRIS_DIRECTION_OFFSET);

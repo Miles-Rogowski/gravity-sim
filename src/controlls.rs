@@ -22,6 +22,9 @@ struct ActivePlanet{
     y_offset: f32
 }
 
+#[derive(Component)]
+struct CameraLocked;
+
 
 #[derive(Resource)]
 struct MouseInertia{
@@ -34,7 +37,7 @@ fn keyboard_shortcuts(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
-    mut planets: Query<(Entity, &mut Transform, &Scale, &mut Velocity, Option<&ActivePlanet>), Without<Camera>>,
+    mut planets: Query<(Entity, &mut Transform, &Scale, &mut Velocity, Option<&ActivePlanet>, Option<&CameraLocked>), Without<Camera>>,
     mut mouse_inertia: ResMut<MouseInertia>,
     mut camera: Query<(&Camera, &GlobalTransform, &mut Transform, &mut Projection)>,
     window: Query<&mut Window, With<PrimaryWindow>>,
@@ -126,8 +129,8 @@ fn keyboard_shortcuts(
         for mut planet in planets.iter_mut(){
             if planet.4.is_some(){
                 if mouse_inertia.x != 0.0 && mouse_inertia.y != 0.0{
-                    planet.3.x += mouse_inertia.x / 2.0;
-                    planet.3.y -= mouse_inertia.y / 2.0;
+                    planet.3.x += mouse_inertia.x * zoom.scale / 2.0;
+                    planet.3.y -= mouse_inertia.y * zoom.scale / 2.0;
                 }
 
                 commands.entity(planet.0).remove::<ActivePlanet>();
@@ -145,6 +148,30 @@ fn keyboard_shortcuts(
         camera_position.translation.y += mouse_motion.delta.y * zoom.scale;
     }
 
+    //locking planets
+
+    if keyboard_input.pressed(KeyCode::ControlLeft) && mouse_input.just_pressed(MouseButton::Left){
+        if let Some(cursor_pos) = window.cursor_position() {
+            let cursor_pos_world = camera.viewport_to_world_2d(camera_transform, cursor_pos).unwrap();
+            for planet in planets.iter(){
+
+                let dx = cursor_pos_world.x - planet.1.translation.x;
+                let dy = cursor_pos_world.y - planet.1.translation.y;
+                let r = planet.1.scale.x;
+
+                if dx * dx + dy * dy <= r * r{
+                    if planet.5.is_some(){
+                        commands.entity(planet.0).remove::<CameraLocked>();
+                    }
+                    else{
+                        commands.entity(planet.0).insert(CameraLocked);
+                    }
+                }
+            }
+        }
+    }
+
+
 
     //zooming
 
@@ -160,6 +187,14 @@ fn keyboard_shortcuts(
     for mut planet in planets.iter_mut(){
         planet.1.scale.x = planet.2.delta;
         planet.1.scale.y = planet.2.delta;
+
+        //lock camera to CameraLocked planets
+
+        if planet.5.is_some(){
+            camera_position.translation.x = planet.1.translation.x;
+            camera_position.translation.y = planet.1.translation.y;
+        }
+
 
     }
 

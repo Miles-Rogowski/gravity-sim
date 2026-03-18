@@ -52,6 +52,7 @@ fn create_planets_on_click(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mouse_input: Res<ButtonInput<MouseButton>>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
     window: Query<&mut Window, With<PrimaryWindow>>,
     mut planets_forming: Query<(Entity, &Forming, &mut Transform, &mut Mass, &mut Scale), Without<Camera>>,
     camera: Query<(&Camera, &GlobalTransform, &Transform, &Projection)>,
@@ -64,7 +65,7 @@ fn create_planets_on_click(
     let Ok((_camera, _camera_transform, camera_position, projection)) = camera.single() else { panic!("no camera!") };
     let Projection::Orthographic(ref zoom) = *projection else { panic!("no projection!") };
 
-    if mouse_input.just_pressed(MouseButton::Left) && planets_forming.iter().len() < 1{
+    if mouse_input.just_pressed(MouseButton::Left) && planets_forming.iter().len() < 1 && !keyboard_input.pressed(KeyCode::ControlLeft){
         //create planet
 
         let x = (mouse_position.unwrap().x - window.width() / 2.0) * zoom.scale + camera_position.translation.x;
