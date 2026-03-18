@@ -1,7 +1,6 @@
 use::bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use crate::planet_creation::*;
-use crate::controlls::*;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use::rand::*;
@@ -46,7 +45,7 @@ fn update(
 ){
     let mut rng = rand::rng();
 
-    let Ok((camera, camera_transform, camera_position, projection)) = camera.single() else { panic!("no camera!") };
+    let Ok((_camera, _camera_transform, camera_position, projection)) = camera.single() else { panic!("no camera!") };
     let Projection::Orthographic(ref zoom) = *projection else { panic!("no projection!") };
 
     let mut accelerations: HashMap<Entity, Vec2> = HashMap::new();

@@ -90,16 +90,13 @@ fn keyboard_shortcuts(
     if mouse_input.just_pressed(MouseButton::Middle){
         if let Some(cursor_pos) = window.cursor_position() {
             let cursor_pos_world = camera.viewport_to_world_2d(camera_transform, cursor_pos).unwrap();
-            for mut planet in planets.iter_mut(){
-
-                println!("test1");
+            for planet in planets.iter(){
 
                 let dx = cursor_pos_world.x - planet.1.translation.x;
                 let dy = cursor_pos_world.y - planet.1.translation.y;
                 let r = planet.1.scale.x;
 
                 if dx * dx + dy * dy <= r * r{
-                    println!("test2");
                     commands.entity(planet.0).insert(ActivePlanet{ x_offset: dx, y_offset: dy });
                 }
             }
@@ -118,8 +115,8 @@ fn keyboard_shortcuts(
                 if planet.5.is_some(){
                     planet.4.x = 0.0;
                     planet.4.y = 0.0;
-                    planet.1.translation.x = (cursor_pos_world.x - planet.5.unwrap().x_offset);
-                    planet.1.translation.y = (cursor_pos_world.y - planet.5.unwrap().y_offset);
+                    planet.1.translation.x = cursor_pos_world.x - planet.5.unwrap().x_offset;
+                    planet.1.translation.y = cursor_pos_world.y - planet.5.unwrap().y_offset;
                 }
             }
         
@@ -127,17 +124,14 @@ fn keyboard_shortcuts(
 }
     else{
         //add to planet velocity
-
-        if let Some(cursor_pos) = window.cursor_position() {
-            for mut planet in planets.iter_mut(){
-                if planet.5.is_some(){
-                    if mouse_inertia.x != 0.0 && mouse_inertia.y != 0.0{
-                        planet.4.x += mouse_inertia.x / 2.0;
-                        planet.4.y -= mouse_inertia.y / 2.0;
-                    }
-
-                    commands.entity(planet.0).remove::<ActivePlanet>();
+        for mut planet in planets.iter_mut(){
+            if planet.5.is_some(){
+                if mouse_inertia.x != 0.0 && mouse_inertia.y != 0.0{
+                    planet.4.x += mouse_inertia.x / 2.0;
+                    planet.4.y -= mouse_inertia.y / 2.0;
                 }
+
+                commands.entity(planet.0).remove::<ActivePlanet>();
             }
         }
 

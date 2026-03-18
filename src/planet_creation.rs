@@ -1,7 +1,6 @@
 use::bevy::prelude::*;
 use::bevy::window::PrimaryWindow;
 use::rand::*;
-use crate::controlls::*;
 
 pub struct PlanetCreationPlugin;
 
@@ -67,7 +66,7 @@ fn create_planets_on_click(
     let window = window.single().unwrap();
     let mouse_position = window.cursor_position();
 
-    let Ok((camera, camera_transform, camera_position, projection)) = camera.single() else { panic!("no camera!") };
+    let Ok((_camera, _camera_transform, camera_position, projection)) = camera.single() else { panic!("no camera!") };
     let Projection::Orthographic(ref zoom) = *projection else { panic!("no projection!") };
 
     if mouse_input.just_pressed(MouseButton::Left) && planets_forming.iter().len() < 1{
