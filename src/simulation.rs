@@ -29,15 +29,17 @@ struct CombinationEntity{
 }
 
 const MAX_DEBRIS_OFFSET: f32 = 0.5;
-const MAX_DEBRIS_DIRECTION_OFFSET: f32 = 5.0;
+const MAX_DEBRIS_DIRECTION_OFFSET: f32 = 20.0;
 const MIN_DEBRIS_MASS: f32 = 0.5;
 const MAX_DEBRIS_MASS: f32 = 2.5;
 const DEBRIS_PER_COLLISION: i32 = 10;
 
+pub const GRAVITY_MULTIPLIER: f32 = 500.0;
+
 
 
 fn update(
-    mut planets: Query<(Entity, &Formed, &mut Velocity, &mut Transform, &Mass, &MeshMaterial2d<ColorMaterial>, &AbsorbTimer, &mut Scale), Without<Camera>>,
+    mut planets: Query<(Entity, &Formed, &mut Velocity, &mut Transform, &Mass, &Sprite, &AbsorbTimer, &mut Scale), Without<Camera>>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     camera: Query<(&Camera, &GlobalTransform, &Transform, &Projection)>,
@@ -64,6 +66,9 @@ fn update(
             //acceleration = force/mass
             //force = 55.743((mass1*mass2)/distance^2)
 
+            let a_scale = (a.7.delta * TEXTURE_SIZE as f32 / 2.0) as f32;
+            let b_scale = (b.7.delta * TEXTURE_SIZE as f32 / 2.0) as f32;
+
 
             let distance_x = a.3.translation.x - b.3.translation.x;
             let distance_y = a.3.translation.y - b.3.translation.y;
@@ -73,21 +78,21 @@ fn update(
             if distance == 0.0{ 
                 continue;
             }
-            let mut force = 55.743*((a.4.mass*b.4.mass)/distance);
+            let mut force = 55.743*((a.4.mass*b.4.mass)/distance) * GRAVITY_MULTIPLIER;
 
-            if distance.sqrt() < a.7.delta + b.7.delta{
+            if distance.sqrt() < a_scale + b_scale{
                 //colliding
                 force = 0.0;
 
                 if !combinations.contains_key(&a.0) && !combinations.contains_key(&b.0) && !entities_to_despawn.contains(&a.0)  && !entities_to_despawn.contains(&b.0) && !combinations.contains_key(&b.0) && a.6.0 <= 0.0 && b.6.0 <= 0.0{
 
-                    if a.7.delta > b.7.delta{
-                        let b_pair = CombinationEntity{ entity: b.0, scale: b.7.delta, vel_x: b.2.x, vel_y: b.2.y, mass: b.4.mass, density: b.4.density, x: b.3.translation.x, y: b.3.translation.y, debris_multiplier: b.4.debris_multiplier};
+                    if a_scale > b_scale{
+                        let b_pair = CombinationEntity{ entity: b.0, scale: b_scale, vel_x: b.2.x, vel_y: b.2.y, mass: b.4.mass, density: b.4.density, x: b.3.translation.x, y: b.3.translation.y, debris_multiplier: b.4.debris_multiplier};
                         combinations.insert(a.0, b_pair);
                         entities_to_despawn.insert(b.0);
                     }
                     else{
-                        let a_pair = CombinationEntity{ entity: a.0, scale: a.7.delta, vel_x: a.2.x, vel_y: a.2.y, mass: a.4.mass, density: b.4.density, x: b.3.translation.x, y: b.3.translation.y, debris_multiplier: b.4.debris_multiplier};
+                        let a_pair = CombinationEntity{ entity: a.0, scale: a_scale, vel_x: a.2.x, vel_y: a.2.y, mass: a.4.mass, density: a.4.density, x: a.3.translation.x, y: a.3.translation.y, debris_multiplier: a.4.debris_multiplier};
                         combinations.insert(b.0, a_pair);
                         entities_to_despawn.insert(a.0);
                     }
@@ -133,13 +138,14 @@ fn update(
         planet.3.translation.y += planet.2.y;
 
         if combinations.contains_key(&planet.0){
-            let r1 = planet.7.delta;
+
+
+            let r1 = planet.7.delta * TEXTURE_SIZE as f32 / 2.0;
             let r2 = combinations[&planet.0].scale;
 
             let r3 = (r1 * r1 + r2 * r2).sqrt();
 
-            planet.7.delta = r3;
-            planet.7.delta = r3;
+            planet.7.delta = r3 / (TEXTURE_SIZE as f32 / 2.0);
 
             if planet.4.mass == 0.0 || combinations[&planet.0].mass == 0.0{
                 continue;
@@ -149,6 +155,7 @@ fn update(
                 planet.2.x = (planet.2.x * planet.4.mass + combinations[&planet.0].vel_x * combinations[&planet.0].mass) / (planet.4.mass + combinations[&planet.0].mass) as f32;
                 planet.2.y = (planet.2.y * planet.4.mass + combinations[&planet.0].vel_y * combinations[&planet.0].mass) / (planet.4.mass + combinations[&planet.0].mass) as f32;
             }
+
             
 
             //create debris
@@ -163,19 +170,18 @@ fn update(
                         continue;
                     }
 
-                    let x = (planet.3.translation.x + dx / distance * planet.7.delta) + rng.random_range(-MAX_DEBRIS_OFFSET..MAX_DEBRIS_OFFSET);
-                    let y = ( planet.3.translation.y + dy / distance * planet.7.delta) + rng.random_range(-MAX_DEBRIS_OFFSET..MAX_DEBRIS_OFFSET);
+                    let x = (planet.3.translation.x + dx / distance * (planet.7.delta * TEXTURE_SIZE as f32 / 2.0)) + rng.random_range(-MAX_DEBRIS_OFFSET..MAX_DEBRIS_OFFSET);
+                    let y = ( planet.3.translation.y + dy / distance * (planet.7.delta * TEXTURE_SIZE as f32 / 2.0)) + rng.random_range(-MAX_DEBRIS_OFFSET..MAX_DEBRIS_OFFSET);
                     let vel_x = -combinations[&planet.0].vel_x + rng.random_range(-MAX_DEBRIS_DIRECTION_OFFSET..MAX_DEBRIS_DIRECTION_OFFSET);
                     let vel_y = -combinations[&planet.0].vel_y + rng.random_range(-MAX_DEBRIS_DIRECTION_OFFSET..MAX_DEBRIS_DIRECTION_OFFSET);
                     let mass = rng.random_range(MIN_DEBRIS_MASS..MAX_DEBRIS_MASS);
                     let density = combinations[&planet.0].density;
-                    let scale = combinations[&planet.0].scale / 20.0;
+                    let scale = (combinations[&planet.0].scale / 20.0) / (TEXTURE_SIZE as f32 / 2.0);
 
 
                     commands.spawn((
                         Formed{},
-                        Mesh2d(meshes.add(Circle::new(1.0))),
-                        MeshMaterial2d(planet.5.0.clone()),
+                        Sprite{ image: planet.5.image.clone(), ..default()},
                         Transform::from_xyz(x, y, 5.0),
                         Velocity{ x: vel_x, y: vel_y },
                         Mass{ mass: mass, density: density, debris_multiplier: 0 },
@@ -207,20 +213,16 @@ fn update(
         if !entities_to_despawn.contains(&planet.0){
             if planet.3.translation.x > width * zoom.scale + camera_position.translation.x{
                 commands.entity(planet.0).despawn();
-                println!("Removed planet at {}, {}", planet.3.translation.x, planet.3.translation.y);
             }
             else if planet.3.translation.x < -width * zoom.scale + camera_position.translation.x{
                 commands.entity(planet.0).despawn();
-                println!("Removed planet at {}, {}", planet.3.translation.x, planet.3.translation.y);
             }
 
             if planet.3.translation.y > height * zoom.scale + camera_position.translation.y{
                 commands.entity(planet.0).despawn();
-                println!("Removed planet at {}, {}", planet.3.translation.x, planet.3.translation.y);
             }
             else if planet.3.translation.y < -height * zoom.scale + camera_position.translation.y{
                 commands.entity(planet.0).despawn();
-                println!("Removed planet at {}, {}", planet.3.translation.x, planet.3.translation.y);
             }
         }
     }

@@ -2765,6 +2765,7 @@ name = "gravity-sim"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "noisy_bevy",
  "rand 0.10.0",
 ]
 
@@ -3345,6 +3346,15 @@ dependencies = [
  "cfg-if",
  "cfg_aliases",
  "libc",
+]
+
+[[package]]
+name = "noisy_bevy"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8b1da9079489877942e9048c7185096f462f585f5aaa4364c9db4af1aca872a0"
+dependencies = [
+ "bevy",
 ]
 
 [[package]]

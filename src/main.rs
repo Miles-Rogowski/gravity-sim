@@ -11,6 +11,7 @@ mod simulation;
 mod controlls;
 mod ui;
 
+
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
@@ -29,6 +30,7 @@ fn setup(
 ){
     commands.spawn((
         Camera2d::default(),
-        Transform::from_xyz(0.0, 0.0, 0.0)
+        Transform::from_xyz(0.0, 0.0, 0.0),
+        Projection::Orthographic(OrthographicProjection{scale: 40.0, ..OrthographicProjection::default_2d()})
     ));
 }

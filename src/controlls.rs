@@ -10,7 +10,8 @@ impl Plugin for ControllsPlugin {
     fn build(&self, app: &mut App){
         app
         .insert_resource(MouseInertia{ x: 0.0, y: 0.0 })
-        .add_systems(Update, keyboard_shortcuts);
+        .add_systems(Update, keyboard_shortcuts)
+        .add_systems(PostUpdate, lock_camera);
     }
 }
 
@@ -37,6 +38,7 @@ fn keyboard_shortcuts(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
+    mut images: ResMut<Assets<Image>>,
     mut planets: Query<(Entity, &mut Transform, &Scale, &mut Velocity, Option<&ActivePlanet>, Option<&CameraLocked>), Without<Camera>>,
     mut mouse_inertia: ResMut<MouseInertia>,
     mut camera: Query<(&Camera, &GlobalTransform, &mut Transform, &mut Projection)>,
@@ -69,7 +71,7 @@ fn keyboard_shortcuts(
 
             let scale = rng.random_range(1.0..50.0);
             
-            let color = PLANET_COLORS[rng.random_range(0..PLANET_COLORS.len())];
+            let texture = generate_planet_texture(TEXTURE_SIZE, TEXTURE_SIZE, (TEXTURE_SIZE / 2) as f32, (TEXTURE_SIZE / 2) as f32, (TEXTURE_SIZE / 2) as f32, PLANET_COLORS[rng.random_range(0..PLANET_COLORS.len())], PLANET_COLORS[rng.random_range(0..PLANET_COLORS.len())], rng.random_range(-1000..1000));
 
             let dens = rng.random_range(MIN_DENSITY..MAX_DENSITY);
 
@@ -77,12 +79,11 @@ fn keyboard_shortcuts(
 
             commands.spawn((
                 Formed{},
-                Mesh2d(meshes.add(Circle::new(1.0))),
-                MeshMaterial2d(materials.add(ColorMaterial::from(Color::from(color)))),
+                Sprite{ image: images.add(texture), ..default() },
                 Transform::from_xyz(x, y, 5.0),
                 Velocity{ x: vel_x, y: vel_y },
                 Mass{ mass: mass, density: dens, debris_multiplier: 1 },
-                Scale{ delta: mass/dens * 2.0 },
+                Scale{ delta: scale },
                 AbsorbTimer( 0.0 )
             ));
         }
@@ -96,7 +97,7 @@ fn keyboard_shortcuts(
 
                 let dx = cursor_pos_world.x - planet.1.translation.x;
                 let dy = cursor_pos_world.y - planet.1.translation.y;
-                let r = planet.1.scale.x;
+                let r = (planet.1.scale.x * TEXTURE_SIZE as f32 / 2.0) as f32;
 
                 if dx * dx + dy * dy <= r * r{
                     commands.entity(planet.0).insert(ActivePlanet{ x_offset: dx, y_offset: dy });
@@ -154,10 +155,13 @@ fn keyboard_shortcuts(
         if let Some(cursor_pos) = window.cursor_position() {
             let cursor_pos_world = camera.viewport_to_world_2d(camera_transform, cursor_pos).unwrap();
             for planet in planets.iter(){
+                if planet.5.is_some(){
+                    commands.entity(planet.0).remove::<CameraLocked>();
+                }
 
                 let dx = cursor_pos_world.x - planet.1.translation.x;
                 let dy = cursor_pos_world.y - planet.1.translation.y;
-                let r = planet.1.scale.x;
+                let r = (planet.1.scale.x * TEXTURE_SIZE as f32 / 2.0) as f32;
 
                 if dx * dx + dy * dy <= r * r{
                     if planet.5.is_some(){
@@ -175,12 +179,12 @@ fn keyboard_shortcuts(
 
     //zooming
 
-    zoom.scale -= mouse_scroll.delta.y;
-    if zoom.scale < 1.0{
-        zoom.scale = 1.0;
-    }
-    else if zoom.scale > 40.0{
+    zoom.scale -= mouse_scroll.delta.y * 40.0;
+    if zoom.scale < 40.0{
         zoom.scale = 40.0;
+    }
+    else if zoom.scale > 1600.0{
+        zoom.scale = 1600.0;
     }
 
 
@@ -188,15 +192,20 @@ fn keyboard_shortcuts(
         planet.1.scale.x = planet.2.delta;
         planet.1.scale.y = planet.2.delta;
 
-        //lock camera to CameraLocked planets
-
-        if planet.5.is_some(){
-            camera_position.translation.x = planet.1.translation.x;
-            camera_position.translation.y = planet.1.translation.y;
-        }
-
-
     }
 
 
+}
+
+fn lock_camera(
+    planets: Query<(&Transform, &CameraLocked), Without<Camera>>,
+    mut camera: Query<(&Camera, &mut Transform,)>,
+){
+
+    let Ok((camera, mut camera_position,)) = camera.single_mut() else { panic!("no camera!") };
+
+    for planet in planets.iter(){
+        camera_position.translation.x = planet.0.translation.x;
+        camera_position.translation.y = planet.0.translation.y;
+    }
 }
