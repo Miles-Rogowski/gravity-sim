@@ -36,8 +36,6 @@ struct MouseInertia{
 
 fn keyboard_shortcuts(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
     mut images: ResMut<Assets<Image>>,
     mut planets: Query<(Entity, &mut Transform, &Scale, &mut Velocity, Option<&ActivePlanet>, Option<&CameraLocked>), Without<Camera>>,
     mut mouse_inertia: ResMut<MouseInertia>,
@@ -71,7 +69,7 @@ fn keyboard_shortcuts(
 
             let scale = rng.random_range(1.0..50.0);
             
-            let texture = generate_planet_texture(TEXTURE_SIZE, TEXTURE_SIZE, (TEXTURE_SIZE / 2) as f32, (TEXTURE_SIZE / 2) as f32, (TEXTURE_SIZE / 2) as f32, PLANET_COLORS[rng.random_range(0..PLANET_COLORS.len())], PLANET_COLORS[rng.random_range(0..PLANET_COLORS.len())], rng.random_range(-1000..1000));
+            let texture = generate_planet_texture(TEXTURE_SIZE, TEXTURE_SIZE, (TEXTURE_SIZE / 2) as f32, (TEXTURE_SIZE / 2) as f32, (TEXTURE_SIZE / 2) as f32, PLANET_COLORS[rng.random_range(0..PLANET_COLORS.len())], PLANET_COLORS[rng.random_range(0..PLANET_COLORS.len())]);
 
             let dens = rng.random_range(MIN_DENSITY..MAX_DENSITY);
 
@@ -81,7 +79,7 @@ fn keyboard_shortcuts(
                 Formed{},
                 Sprite{ image: images.add(texture), ..default() },
                 Transform::from_xyz(x, y, 5.0),
-                Velocity{ x: vel_x, y: vel_y },
+                Velocity{ x: vel_x, y: vel_y, start_x: vel_x, start_y: vel_y },
                 Mass{ mass: mass, density: dens, debris_multiplier: 1 },
                 Scale{ delta: scale },
                 AbsorbTimer( 0.0 )
@@ -99,7 +97,7 @@ fn keyboard_shortcuts(
                 let dy = cursor_pos_world.y - planet.1.translation.y;
                 let r = (planet.1.scale.x * TEXTURE_SIZE as f32 / 2.0) as f32;
 
-                if dx * dx + dy * dy <= r * r{
+                if dx * dx + dy * dy <= r * r && !planet.5.is_some(){
                     commands.entity(planet.0).insert(ActivePlanet{ x_offset: dx, y_offset: dy });
                 }
             }
@@ -202,7 +200,7 @@ fn lock_camera(
     mut camera: Query<(&Camera, &mut Transform,)>,
 ){
 
-    let Ok((camera, mut camera_position,)) = camera.single_mut() else { panic!("no camera!") };
+    let Ok((_camera, mut camera_position)) = camera.single_mut() else { panic!("no camera!") };
 
     for planet in planets.iter(){
         camera_position.translation.x = planet.0.translation.x;

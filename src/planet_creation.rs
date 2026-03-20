@@ -2,10 +2,16 @@ use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use bevy::asset::RenderAssetUsages;
-use crate::simulation::*;
 use rand::*;
-use noisy_bevy::fbm_simplex_2d_seeded;
 
+use std::fs::File;
+use std::path::Path;
+
+use image::GenericImage;
+use image::GenericImageView;
+use image::Pixels;
+use image::Pixel;
+use image::Rgba;
 
 
 pub struct PlanetCreationPlugin;
@@ -42,7 +48,9 @@ pub struct Formed;
 #[derive(Component)]
 pub struct Velocity{
     pub x: f32,
-    pub y: f32
+    pub y: f32,
+    pub start_x: f32,
+    pub start_y: f32
 }
 
 #[derive(Component)]
@@ -64,13 +72,11 @@ pub struct AbsorbTimer(pub f32);
 
 fn create_planets_on_click(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
     mut images: ResMut<Assets<Image>>,
     mouse_input: Res<ButtonInput<MouseButton>>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     window: Query<&mut Window, With<PrimaryWindow>>,
-    mut planets_forming: Query<(Entity, &Forming, &mut Transform, &mut Mass, &mut Scale), Without<Camera>>,
+    mut planets_forming: Query<(Entity, &Forming, &mut Transform, &mut Mass, &mut Scale, &mut Velocity), Without<Camera>>,
     camera: Query<(&Camera, &GlobalTransform, &Transform, &Projection)>,
 ){
     let mut rng = rand::rng();
@@ -87,12 +93,10 @@ fn create_planets_on_click(
         let x = (mouse_position.unwrap().x - window.width() / 2.0) * zoom.scale + camera_position.translation.x;
         let y = -(mouse_position.unwrap().y - window.height() / 2.0) * zoom.scale + camera_position.translation.y;
 
-        let texture = generate_planet_texture(TEXTURE_SIZE, TEXTURE_SIZE, (TEXTURE_SIZE / 2) as f32, (TEXTURE_SIZE / 2) as f32, (TEXTURE_SIZE / 2) as f32, PLANET_COLORS[rng.random_range(0..PLANET_COLORS.len())], PLANET_COLORS[rng.random_range(0..PLANET_COLORS.len())], rng.random_range(-1000..1000));
+        let texture = generate_planet_texture(TEXTURE_SIZE, TEXTURE_SIZE, (TEXTURE_SIZE / 2) as f32, (TEXTURE_SIZE / 2) as f32, (TEXTURE_SIZE / 2) as f32, PLANET_COLORS[rng.random_range(0..PLANET_COLORS.len())], PLANET_COLORS[rng.random_range(0..PLANET_COLORS.len())]);
 
-        let vel_x = rng.random_range(-MAX_VELOCITY..MAX_VELOCITY);// * GRAVITY_MULTIPLIER;
-        let vel_y = rng.random_range(-MAX_VELOCITY..MAX_VELOCITY);// * GRAVITY_MULTIPLIER;
-        
-        let color = PLANET_COLORS[rng.random_range(0..PLANET_COLORS.len())];
+        let vel_x = rng.random_range(-MAX_VELOCITY..MAX_VELOCITY);
+        let vel_y = rng.random_range(-MAX_VELOCITY..MAX_VELOCITY);
 
         let dens = rng.random_range(MIN_DENSITY..MAX_DENSITY);
 
@@ -100,7 +104,7 @@ fn create_planets_on_click(
             Forming{},
             Sprite{ image: images.add(texture), ..default() },
             Transform::from_xyz(x, y, 5.0).with_scale(Vec3{ x: 0.002, y: 0.002, z: 1.0 }),
-            Velocity{ x: vel_x, y: vel_y },
+            Velocity{ x: vel_x, y: vel_y, start_x: vel_x, start_y: vel_y },
             Mass{ mass: 0.0, density: dens, debris_multiplier: 1 },
             Scale{ delta: SCALE_MULTIPLIER },
             AbsorbTimer( 0.0 )
@@ -109,11 +113,31 @@ fn create_planets_on_click(
     else if mouse_input.pressed(MouseButton::Left){
         //expand planet
 
-        if let Some((_, _, _, mut mass, mut scale)) = planets_forming.iter_mut().next(){
+        if let Some((_, _, mut transform, mut mass, mut scale, mut velocity)) = planets_forming.iter_mut().next(){
 
 
 
             scale.delta += SCALE_MULTIPLIER * 2.0;
+            
+
+            if mouse_position.is_some(){
+
+                let mouse_x = (mouse_position.unwrap().x - window.width() / 2.0) * zoom.scale + camera_position.translation.x;
+                let mouse_y = -(mouse_position.unwrap().y - window.height() / 2.0) * zoom.scale + camera_position.translation.y;
+
+                velocity.x = -(transform.translation.x - mouse_x);
+                velocity.y = -(transform.translation.y - mouse_y);
+
+                if velocity.x == 0.0 && velocity.y == 0.0{
+                    velocity.x = velocity.start_x;
+                    velocity.y = velocity.start_y;
+                }
+
+                transform.translation.x = mouse_x;
+                transform.translation.y = mouse_y;
+            }
+
+            
 
             mass.mass += mass.density * 2.0 * 40.0;
 
@@ -124,7 +148,7 @@ fn create_planets_on_click(
     }
     else if mouse_input.just_released(MouseButton::Left){
         //allow gravity to act
-        if let Some((planet, _, _, _, _)) = planets_forming.iter().next(){
+        if let Some((planet, _, _, _, _, _)) = planets_forming.iter().next(){
             commands.entity(planet).remove::<Forming>();
             commands.entity(planet).insert(Formed);
         }
@@ -132,39 +156,55 @@ fn create_planets_on_click(
     }
 }
 
-pub fn generate_planet_texture(width: u32, height: u32, x_offset: f32, y_offset: f32, radius: f32, color1: LinearRgba, mut color2: LinearRgba, seed: i32) -> Image{
+pub fn generate_planet_texture(width: u32, height: u32, center_x: f32, center_y: f32, radius: f32, color1: LinearRgba, mut color2: LinearRgba) -> Image{
 
+    let mut rng = rand::rng();
+
+    // Modified from - https://stackoverflow.com/q/40518713
+    // Posted by BMBM, modified by community. See post 'Timeline' for change history
+    // Retrieved 2026-03-19, License - CC BY-SA 3.0
+
+    let image_number = rng.random_range(0..15).to_string();
+
+    let input_path = "assets/".to_owned() + &"noise".to_owned() + &image_number + ".png";
+
+    let img = image::open(&Path::new(&input_path)).unwrap();
+
+    let img_width = img.dimensions().0 as i32;
+    let img_height = img.dimensions().1 as i32;
+
+    let raw_pixels = img.to_rgba8().into_raw();
     let mut pixels: Vec<u8> = Vec::new();
+    
+    let i_height = height as i32;
+    let i_width = width as i32;
+
+    let x_offset = rng.random_range(width/2..img_width as u32 - width / 2) as i32;
+    let y_offset = rng.random_range(height/2..img_height as u32 - height / 2) as i32;
 
     if color1 == color2{
-        let mut rng = rand::rng();
         color2.red += rng.random_range(-25..25) as f32 / 255.0;
         color2.green += rng.random_range(-25..25) as f32 / 255.0;
         color2.blue += rng.random_range(-25..25) as f32 / 255.0;
     }
 
+    
 
-    for x in 0..width{
-        for y in 0..height{
-            let xf = x as f32 - x_offset;
-            let yf = y as f32 - y_offset;
-            if xf*xf + yf*yf <= radius*radius{
-                let value = (fbm_simplex_2d_seeded(vec2(xf / 200.0, yf / 200.0), 3, 2.0, 0.5, seed as f32) * 255.0) as u8;
-
-                if value < 1 as u8{
+    for y in -i_height / 2..i_height / 2{
+        for x in -i_width / 2..i_width / 2{
+            if (x*x + y*y) as f32 <= radius*radius{
+                if raw_pixels[(((y + y_offset) * img_width + (x + x_offset)) * 4) as usize] == 255{
                     pixels.push((color1.red * 255.0) as u8);
                     pixels.push((color1.green * 255.0) as u8);
                     pixels.push((color1.blue * 255.0) as u8);
-                    pixels.push(255 as u8);
+                    pixels.push(255);
                 }
                 else{
                     pixels.push((color2.red * 255.0) as u8);
                     pixels.push((color2.green * 255.0) as u8);
                     pixels.push((color2.blue * 255.0) as u8);
-                    pixels.push(255 as u8);
+                    pixels.push(255);
                 }
-
-                
             }
             else{
                 pixels.push(0 as u8);
@@ -172,8 +212,12 @@ pub fn generate_planet_texture(width: u32, height: u32, x_offset: f32, y_offset:
                 pixels.push(0 as u8);
                 pixels.push(0 as u8);
             }
+            
         }
     }
+
+    
+
 
     let texture = Image::new(
         Extent3d { width: width, height: height, depth_or_array_layers: 1 },

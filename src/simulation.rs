@@ -29,7 +29,7 @@ struct CombinationEntity{
 }
 
 const MAX_DEBRIS_OFFSET: f32 = 0.5;
-const MAX_DEBRIS_DIRECTION_OFFSET: f32 = 20.0;
+const MAX_DEBRIS_DIRECTION_OFFSET: f32 = 100.0;
 const MIN_DEBRIS_MASS: f32 = 0.5;
 const MAX_DEBRIS_MASS: f32 = 2.5;
 const DEBRIS_PER_COLLISION: i32 = 10;
@@ -41,7 +41,6 @@ pub const GRAVITY_MULTIPLIER: f32 = 500.0;
 fn update(
     mut planets: Query<(Entity, &Formed, &mut Velocity, &mut Transform, &Mass, &Sprite, &AbsorbTimer, &mut Scale), Without<Camera>>,
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
     camera: Query<(&Camera, &GlobalTransform, &Transform, &Projection)>,
     window: Query<&Window, With<PrimaryWindow>>,
 ){
@@ -172,8 +171,8 @@ fn update(
 
                     let x = (planet.3.translation.x + dx / distance * (planet.7.delta * TEXTURE_SIZE as f32 / 2.0)) + rng.random_range(-MAX_DEBRIS_OFFSET..MAX_DEBRIS_OFFSET);
                     let y = ( planet.3.translation.y + dy / distance * (planet.7.delta * TEXTURE_SIZE as f32 / 2.0)) + rng.random_range(-MAX_DEBRIS_OFFSET..MAX_DEBRIS_OFFSET);
-                    let vel_x = -combinations[&planet.0].vel_x + rng.random_range(-MAX_DEBRIS_DIRECTION_OFFSET..MAX_DEBRIS_DIRECTION_OFFSET);
-                    let vel_y = -combinations[&planet.0].vel_y + rng.random_range(-MAX_DEBRIS_DIRECTION_OFFSET..MAX_DEBRIS_DIRECTION_OFFSET);
+                    let vel_x = -combinations[&planet.0].vel_x / 2.5 + rng.random_range(-MAX_DEBRIS_DIRECTION_OFFSET..MAX_DEBRIS_DIRECTION_OFFSET);
+                    let vel_y = -combinations[&planet.0].vel_y / 2.5 + rng.random_range(-MAX_DEBRIS_DIRECTION_OFFSET..MAX_DEBRIS_DIRECTION_OFFSET);
                     let mass = rng.random_range(MIN_DEBRIS_MASS..MAX_DEBRIS_MASS);
                     let density = combinations[&planet.0].density;
                     let scale = (combinations[&planet.0].scale / 20.0) / (TEXTURE_SIZE as f32 / 2.0);
@@ -183,7 +182,7 @@ fn update(
                         Formed{},
                         Sprite{ image: planet.5.image.clone(), ..default()},
                         Transform::from_xyz(x, y, 5.0),
-                        Velocity{ x: vel_x, y: vel_y },
+                        Velocity{ x: vel_x, y: vel_y, start_x: vel_x, start_y: vel_y },
                         Mass{ mass: mass, density: density, debris_multiplier: 0 },
                         Scale{ delta: scale },
                         AbsorbTimer( 5.0 )
