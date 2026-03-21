@@ -3,6 +3,9 @@ use bevy::window::PrimaryWindow;
 use bevy::input::mouse::*;
 use::rand::*;
 use crate::planet_creation::*;
+use std::path::Path;
+
+use bevy::render::render_resource::{Extent3d};
 
 pub struct ControllsPlugin;
 
@@ -10,6 +13,7 @@ impl Plugin for ControllsPlugin {
     fn build(&self, app: &mut App){
         app
         .insert_resource(MouseInertia{ x: 0.0, y: 0.0 })
+        .add_systems(Startup, setup)
         .add_systems(Update, keyboard_shortcuts)
         .add_systems(PostUpdate, lock_camera);
     }
@@ -18,7 +22,10 @@ impl Plugin for ControllsPlugin {
 
 
 #[derive(Component)]
-struct ActivePlanet{
+struct PlanetReticle;
+
+#[derive(Component)]
+pub struct ActivePlanet{
     x_offset: f32,
     y_offset: f32
 }
@@ -31,6 +38,22 @@ struct CameraLocked;
 struct MouseInertia{
     x: f32,
     y: f32
+}
+
+fn setup(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut images: ResMut<Assets<Image>>,
+){
+
+    let img = asset_server.load("outline.png");
+
+    commands.spawn((
+        PlanetReticle{},
+        Transform::from_xyz(0.0, 0.0, 500.0).with_scale(Vec3{x: 10.0, y: 10.0, z: 10.0}),
+        Sprite{ image: img, ..default()},
+        Visibility::Hidden,
+    ));
 }
 
 
@@ -196,14 +219,27 @@ fn keyboard_shortcuts(
 }
 
 fn lock_camera(
-    planets: Query<(&Transform, &CameraLocked), Without<Camera>>,
-    mut camera: Query<(&Camera, &mut Transform,)>,
+    planets: Query<(&Transform, &CameraLocked), (Without<Camera>, Without<PlanetReticle>)>,
+    mut reticle: Query<(&mut Transform, &mut Visibility, &PlanetReticle), Without<Camera>>,
+    mut camera: Query<(&Camera, &mut Transform,), Without<PlanetReticle>>,
 ){
 
     let Ok((_camera, mut camera_position)) = camera.single_mut() else { panic!("no camera!") };
+    let Ok((mut reticle_transform, mut visibility, _)) = reticle.single_mut() else { panic!("no reticle!") };
 
     for planet in planets.iter(){
         camera_position.translation.x = planet.0.translation.x;
         camera_position.translation.y = planet.0.translation.y;
+        reticle_transform.scale = planet.0.scale * 0.5;
     }
+
+
+    if planets.iter().len() > 0{
+        reticle_transform.translation = camera_position.translation;
+        *visibility = Visibility::Visible;
+    }
+    else{
+        *visibility = Visibility::Hidden;
+    }
+    
 }

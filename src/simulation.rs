@@ -1,6 +1,7 @@
 use::bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use crate::planet_creation::*;
+use crate::controlls::ActivePlanet;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use::rand::*;
@@ -39,7 +40,7 @@ pub const GRAVITY_MULTIPLIER: f32 = 500.0;
 
 
 fn update(
-    mut planets: Query<(Entity, &Formed, &mut Velocity, &mut Transform, &Mass, &Sprite, &AbsorbTimer, &mut Scale), Without<Camera>>,
+    mut planets: Query<(Entity, &Formed, &mut Velocity, &mut Transform, &Mass, &Sprite, &AbsorbTimer, &mut Scale), (Without<Camera>, Without<ActivePlanet>)>,
     mut commands: Commands,
     camera: Query<(&Camera, &GlobalTransform, &Transform, &Projection)>,
     window: Query<&Window, With<PrimaryWindow>>,
