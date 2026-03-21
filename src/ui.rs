@@ -1,21 +1,11 @@
 use bevy::{
-    input_focus::{
-        tab_navigation::{TabGroup, TabIndex, TabNavigationPlugin},
-        InputDispatchPlugin,
-    },
-    picking::hover::Hovered,
-    prelude::*,
-    ui::InteractionDisabled,
-    ui_widgets::{
-        observe,
-        CoreSliderDragState, Slider, SliderRange, SliderThumb,
-        SliderValue, TrackClick, UiWidgetsPlugins, ValueChange,
-    },
-    color::palettes::css::*,
-    math::ops,
-    sprite::{Anchor, Text2dShadow},
-    text::{FontSmoothing, LineBreak, TextBounds},
+    color::palettes::css::*, ecs::name, input_focus::{
+        InputDispatchPlugin, tab_navigation::{TabGroup, TabIndex, TabNavigationPlugin}
+    }, math::ops, picking::hover::Hovered, prelude::*, sprite::{Anchor, Text2dShadow}, text::{FontSmoothing, LineBreak, TextBounds}, ui::InteractionDisabled, ui_widgets::{
+        CoreSliderDragState, Slider, SliderRange, SliderThumb, SliderValue, TrackClick, UiWidgetsPlugins, ValueChange, observe
+    }
 };
+use std::{collections::HashMap, hash::Hash};
 
 
 pub struct UIPlugin;
@@ -35,8 +25,16 @@ impl Plugin for UIPlugin {
             TabNavigationPlugin,
         ))
         .insert_resource(DemoWidgetStates {
-            slider_value: 50.0,
-            slider_click: TrackClick::Snap,
+            sliders: HashMap::from([
+                (String::from("demo_slider_1"), SliderState{
+                    slider_value: 50.0,
+                    slider_click: TrackClick::Snap,
+                }),
+                (String::from("demo_slider_2"), SliderState{
+                    slider_value: 50.0,
+                    slider_click: TrackClick::Snap,
+                }),
+            ])
         })
         .insert_resource(IsInteractingUI(false))
         .add_systems(Startup, (
@@ -71,33 +69,35 @@ struct DemoSlider;
 struct DemoSliderThumb;
 
 //struct used to keep track of Widget states
-#[derive(Resource)]
-struct DemoWidgetStates{
+
+struct SliderState{
     slider_value: f32,
     slider_click: TrackClick,
+}
+
+//slider data
+
+#[derive(Resource)]
+struct DemoWidgetStates{
+    sliders: HashMap<String, SliderState>
 }
 
 #[derive(Resource)]
 pub struct IsInteractingUI(pub bool);
 
 
-//test components
-#[derive(Resource)]
-struct TextBox;
-
-
 
 fn update_widget_values( 
     res: Res<DemoWidgetStates>,
-    mut sliders: Query<(Entity, &mut Slider), With<DemoSlider>>,
+    mut sliders: Query<(Entity, &mut Slider, &Name), With<DemoSlider>>,
     mut commands: Commands,
 ){
     if res.is_changed(){
-        for (slider_ent, mut slider) in sliders.iter_mut(){
+        for (slider_ent, mut slider, name) in sliders.iter_mut(){
             commands
                 .entity(slider_ent)
-                .insert(SliderValue(res.slider_value));
-            slider.track_click = res.slider_click;
+                .insert(SliderValue(res.sliders[name.as_str()].slider_value));
+            slider.track_click = res.sliders[name.as_str()].slider_click;
         }
     }
 }
@@ -136,14 +136,26 @@ fn demo_root(text_font: TextFont) -> impl Bundle{
                 text_font.clone().with_font_smoothing(FontSmoothing::AntiAliased),
             ),
             (
-                slider(0.0, 100.0, 50.0),
+                slider(0.0, 100.0, 50.0, "demo_slider_1".to_string()),
                 observe(
                     |value_change: On<ValueChange<f32>>,
                     mut widget_states: ResMut<DemoWidgetStates>|{
-                        widget_states.slider_value = value_change.value;
+                        let slider_click = widget_states.sliders["demo_slider_1"].slider_click;
+                        widget_states.sliders.insert("demo_slider_1".to_string(), SliderState { slider_value: value_change.value, slider_click: slider_click });
+                    },
+                )
+            ),
+            (
+                slider(0.0, 100.0, 50.0, "demo_slider_2".to_string()),
+                observe(
+                    |value_change: On<ValueChange<f32>>,
+                    mut widget_states: ResMut<DemoWidgetStates>|{
+                        let slider_click = widget_states.sliders["demo_slider_2"].slider_click;
+                        widget_states.sliders.insert("demo_slider_2".to_string(), SliderState { slider_value: value_change.value, slider_click: slider_click });
                     },
                 )
             )
+            
             
         ]
     )
@@ -151,7 +163,7 @@ fn demo_root(text_font: TextFont) -> impl Bundle{
 
 
 // create slider :O
-fn slider(min: f32, max: f32, value: f32) -> impl Bundle{
+fn slider(min: f32, max: f32, value: f32, name: String) -> impl Bundle{
     (
         Node{
             display: Display::Flex,
@@ -164,7 +176,7 @@ fn slider(min: f32, max: f32, value: f32) -> impl Bundle{
             width: percent(20),
             ..default()
         },
-        Name::new("Slider"),
+        Name::new(name),
         Hovered::default(),
         DemoSlider,
         Slider{
