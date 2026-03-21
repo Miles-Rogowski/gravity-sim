@@ -40,7 +40,7 @@ pub const GRAVITY_MULTIPLIER: f32 = 500.0;
 
 
 fn update(
-    mut planets: Query<(Entity, &Formed, &mut Velocity, &mut Transform, &Mass, &Sprite, &AbsorbTimer, &mut Scale), (Without<Camera>, Without<ActivePlanet>)>,
+    mut planets: Query<(Entity, &Formed, &mut Velocity, &mut Transform, &Mass, &Sprite, &AbsorbTimer, &mut Scale), (Without<Camera>)>,
     mut commands: Commands,
     camera: Query<(&Camera, &GlobalTransform, &Transform, &Projection)>,
     window: Query<&Window, With<PrimaryWindow>>,

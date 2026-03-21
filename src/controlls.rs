@@ -3,9 +3,6 @@ use bevy::window::PrimaryWindow;
 use bevy::input::mouse::*;
 use::rand::*;
 use crate::planet_creation::*;
-use std::path::Path;
-
-use bevy::render::render_resource::{Extent3d};
 
 pub struct ControllsPlugin;
 
@@ -43,7 +40,6 @@ struct MouseInertia{
 fn setup(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    mut images: ResMut<Assets<Image>>,
 ){
 
     let img = asset_server.load("outline.png");
@@ -92,7 +88,7 @@ fn keyboard_shortcuts(
 
             let scale = rng.random_range(1.0..50.0);
             
-            let texture = generate_planet_texture(TEXTURE_SIZE, TEXTURE_SIZE, (TEXTURE_SIZE / 2) as f32, (TEXTURE_SIZE / 2) as f32, (TEXTURE_SIZE / 2) as f32, PLANET_COLORS[rng.random_range(0..PLANET_COLORS.len())], PLANET_COLORS[rng.random_range(0..PLANET_COLORS.len())]);
+            let texture = generate_planet_texture(TEXTURE_SIZE, TEXTURE_SIZE, (TEXTURE_SIZE / 2) as f32, PLANET_COLORS[rng.random_range(0..PLANET_COLORS.len())], PLANET_COLORS[rng.random_range(0..PLANET_COLORS.len())]);
 
             let dens = rng.random_range(MIN_DENSITY..MAX_DENSITY);
 

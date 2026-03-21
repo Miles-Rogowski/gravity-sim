@@ -4,14 +4,9 @@ use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use bevy::asset::RenderAssetUsages;
 use rand::*;
 
-use std::fs::File;
 use std::path::Path;
 
-use image::GenericImage;
 use image::GenericImageView;
-use image::Pixels;
-use image::Pixel;
-use image::Rgba;
 
 
 pub struct PlanetCreationPlugin;
@@ -23,11 +18,12 @@ impl Plugin for PlanetCreationPlugin {
     }
 }
 
-pub const PLANET_COLORS: [bevy::prelude::LinearRgba; 3] = [
+pub const PLANET_COLORS: [bevy::prelude::LinearRgba; 4] = [
     LinearRgba::rgb(0.19, 0.63, 0.38),
     LinearRgba::rgb(0.16, 0.29, 0.79),
-    LinearRgba::rgb(0.70, 0.41, 0.22)
-    ];
+    LinearRgba::rgb(0.70, 0.41, 0.22),
+    LinearRgba::rgb(0.33, 0.33, 0.35)
+];
 
 
 pub const MAX_VELOCITY: f32 = 5.0;
@@ -93,7 +89,7 @@ fn create_planets_on_click(
         let x = (mouse_position.unwrap().x - window.width() / 2.0) * zoom.scale + camera_position.translation.x;
         let y = -(mouse_position.unwrap().y - window.height() / 2.0) * zoom.scale + camera_position.translation.y;
 
-        let texture = generate_planet_texture(TEXTURE_SIZE, TEXTURE_SIZE, (TEXTURE_SIZE / 2) as f32, (TEXTURE_SIZE / 2) as f32, (TEXTURE_SIZE / 2) as f32, PLANET_COLORS[rng.random_range(0..PLANET_COLORS.len())], PLANET_COLORS[rng.random_range(0..PLANET_COLORS.len())]);
+        let texture = generate_planet_texture(TEXTURE_SIZE, TEXTURE_SIZE, (TEXTURE_SIZE / 2) as f32, PLANET_COLORS[rng.random_range(0..PLANET_COLORS.len())], PLANET_COLORS[rng.random_range(0..PLANET_COLORS.len())]);
 
         let vel_x = rng.random_range(-MAX_VELOCITY..MAX_VELOCITY);
         let vel_y = rng.random_range(-MAX_VELOCITY..MAX_VELOCITY);
@@ -156,7 +152,7 @@ fn create_planets_on_click(
     }
 }
 
-pub fn generate_planet_texture(width: u32, height: u32, center_x: f32, center_y: f32, radius: f32, color1: LinearRgba, mut color2: LinearRgba) -> Image{
+pub fn generate_planet_texture(width: u32, height: u32, radius: f32, color1: LinearRgba, mut color2: LinearRgba) -> Image{
 
     let mut rng = rand::rng();
 
