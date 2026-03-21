@@ -1,7 +1,6 @@
 use::bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use crate::planet_creation::*;
-use crate::controlls::ActivePlanet;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use::rand::*;
@@ -40,7 +39,7 @@ pub const GRAVITY_MULTIPLIER: f32 = 500.0;
 
 
 fn update(
-    mut planets: Query<(Entity, &Formed, &mut Velocity, &mut Transform, &Mass, &Sprite, &AbsorbTimer, &mut Scale), (Without<Camera>)>,
+    mut planets: Query<(Entity, &Formed, &mut Velocity, &mut Transform, &Mass, &Sprite, &AbsorbTimer, &mut Scale), Without<Camera>>,
     mut commands: Commands,
     camera: Query<(&Camera, &GlobalTransform, &Transform, &Projection)>,
     window: Query<&Window, With<PrimaryWindow>>,
@@ -160,7 +159,7 @@ fn update(
 
             //create debris
 
-            if combinations[&planet.0].mass > 10.0{
+            if combinations[&planet.0].mass > 5.0{
                 for _i in 0..DEBRIS_PER_COLLISION{
                     let dx = combinations[&planet.0].x - planet.3.translation.x;
                     let dy = combinations[&planet.0].y - planet.3.translation.y;

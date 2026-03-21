@@ -4,6 +4,8 @@ use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use bevy::asset::RenderAssetUsages;
 use rand::*;
 
+use crate::ui::IsInteractingUI;
+
 use std::path::Path;
 
 use image::GenericImageView;
@@ -73,6 +75,7 @@ fn create_planets_on_click(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     window: Query<&mut Window, With<PrimaryWindow>>,
     mut planets_forming: Query<(Entity, &Forming, &mut Transform, &mut Mass, &mut Scale, &mut Velocity), Without<Camera>>,
+    is_interacting_ui: Res<IsInteractingUI>,
     camera: Query<(&Camera, &GlobalTransform, &Transform, &Projection)>,
 ){
     let mut rng = rand::rng();
@@ -83,7 +86,7 @@ fn create_planets_on_click(
     let Ok((_camera, _camera_transform, camera_position, projection)) = camera.single() else { panic!("no camera!") };
     let Projection::Orthographic(ref zoom) = *projection else { panic!("no projection!") };
 
-    if mouse_input.just_pressed(MouseButton::Left) && planets_forming.iter().len() < 1 && !keyboard_input.pressed(KeyCode::ControlLeft){
+    if mouse_input.just_pressed(MouseButton::Left) && planets_forming.iter().len() < 1 && !keyboard_input.pressed(KeyCode::ControlLeft) && !is_interacting_ui.0{
         //create planet
 
         let x = (mouse_position.unwrap().x - window.width() / 2.0) * zoom.scale + camera_position.translation.x;

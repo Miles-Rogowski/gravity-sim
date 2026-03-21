@@ -1,19 +1,20 @@
 use bevy::{
-    color::palettes::basic::*,
     input_focus::{
         tab_navigation::{TabGroup, TabIndex, TabNavigationPlugin},
-        InputDispatchPlugin, InputFocus,
+        InputDispatchPlugin,
     },
     picking::hover::Hovered,
     prelude::*,
-    ui::{Checked, InteractionDisabled, Pressed},
+    ui::InteractionDisabled,
     ui_widgets::{
-        checkbox_self_update, observe,
-        popover::{Popover, PopoverAlign, PopoverPlacement, PopoverSide},
-        Activate, Button, Checkbox, CoreSliderDragState, MenuAction, MenuButton, MenuEvent,
-        MenuItem, MenuPopup, RadioButton, RadioGroup, Slider, SliderRange, SliderThumb,
+        observe,
+        CoreSliderDragState, Slider, SliderRange, SliderThumb,
         SliderValue, TrackClick, UiWidgetsPlugins, ValueChange,
     },
+    color::palettes::css::*,
+    math::ops,
+    sprite::{Anchor, Text2dShadow},
+    text::{FontSmoothing, LineBreak, TextBounds},
 };
 
 
@@ -37,7 +38,11 @@ impl Plugin for UIPlugin {
             slider_value: 50.0,
             slider_click: TrackClick::Snap,
         })
-        .add_systems(Startup, setup)
+        .insert_resource(IsInteractingUI(false))
+        .add_systems(Startup, (
+            spawn_ui,
+            //create_text,
+        ))
         .add_systems(
             Update,
             (
@@ -52,10 +57,10 @@ impl Plugin for UIPlugin {
 
 const SLIDER_TRACK: Color = Color::srgb(0.05, 0.05, 0.05);
 const SLIDER_THUMB: Color = Color::srgb(0.35, 0.75, 0.35);
-const ELEMENT_OUTLINE: Color = Color::srgb(0.45, 0.45, 0.45);
-const ELEMENT_FILL: Color = Color::srgb(0.35, 0.75, 0.35);
 const ELEMENT_FILL_DISABLED: Color = Color::srgb(0.501, 0.501, 0.501);
 
+
+//interactable elements
 
 //markers for different ui elements
 
@@ -65,20 +70,22 @@ struct DemoSlider;
 #[derive(Component)]
 struct DemoSliderThumb;
 
-#[derive(Component)]
-struct DemoMenuAnchor;
-
-#[derive(Component)]
-struct DemoMenuItem;
-
-
 //struct used to keep track of Widget states
-
 #[derive(Resource)]
 struct DemoWidgetStates{
     slider_value: f32,
     slider_click: TrackClick,
 }
+
+#[derive(Resource)]
+pub struct IsInteractingUI(pub bool);
+
+
+//test components
+#[derive(Resource)]
+struct TextBox;
+
+
 
 fn update_widget_values( 
     res: Res<DemoWidgetStates>,
@@ -95,30 +102,39 @@ fn update_widget_values(
     }
 }
 
-fn setup(
+fn spawn_ui(
     mut commands: Commands,
-    assets: Res<AssetServer>
+    asset_server: Res<AssetServer>,
 ){
-    //magic thing
-    commands.spawn(demo_root(&assets));
+    let font = asset_server.load("FiraSans-Bold.ttf");
+    let text_font = TextFont{
+        font: font.clone(),
+        font_size: 25.0,
+        ..default()
+    };
+
+    commands.spawn(demo_root(text_font));
 }
 
-fn demo_root(
-    asset_server: &AssetServer
-) -> impl Bundle{
+fn demo_root(text_font: TextFont) -> impl Bundle{
     (
         Node {
             width: percent(100),
             height: percent(100),
-            align_items: AlignItems::Center,
-            justify_content: JustifyContent::Center,
+            align_items: AlignItems::FlexEnd,
+            justify_content: JustifyContent::FlexEnd,
             display: Display::Flex,
             flex_direction: FlexDirection::Column,
+            padding: px(25).into(),
             row_gap: px(10),
             ..default()
         },
         TabGroup::default(),
         children![
+            (
+                Text::new(" Demo Text "),
+                text_font.clone().with_font_smoothing(FontSmoothing::AntiAliased),
+            ),
             (
                 slider(0.0, 100.0, 50.0),
                 observe(
@@ -128,6 +144,7 @@ fn demo_root(
                     },
                 )
             )
+            
         ]
     )
 }
@@ -144,7 +161,7 @@ fn slider(min: f32, max: f32, value: f32) -> impl Bundle{
             justify_items: JustifyItems::Center,
             column_gap: px(4),
             height: px(12),
-            width: percent(30),
+            width: percent(20),
             ..default()
         },
         Name::new("Slider"),
@@ -224,6 +241,7 @@ fn update_slider_style(
     >,
     children: Query<&Children>,
     mut thumbs: Query<(&mut Node, &mut BackgroundColor, Has<DemoSliderThumb>), Without<DemoSlider>>,
+    mut is_interacting_ui: ResMut<IsInteractingUI>,
 ){
     for (slider_ent, value, range, hovered, drag_state, disabled) in sliders.iter(){
         for child in children.iter_descendants(slider_ent){
@@ -232,6 +250,8 @@ fn update_slider_style(
                 thumb_bg.0 = thumb_color(disabled, hovered.0 | drag_state.dragging);
             }
         }
+        is_interacting_ui.0 = hovered.0;
+        println!("{}", is_interacting_ui.0);
     }
 }
 
