@@ -4,7 +4,7 @@ use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use bevy::asset::RenderAssetUsages;
 use rand::*;
 
-use crate::ui::IsInteractingUI;
+use crate::ui::{IsInteractingUI, SliderWidgetStates};
 
 use std::path::Path;
 
@@ -74,6 +74,7 @@ fn create_planets_on_click(
     mouse_input: Res<ButtonInput<MouseButton>>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     window: Query<&mut Window, With<PrimaryWindow>>,
+    slider_values: Res<SliderWidgetStates>,
     mut planets_forming: Query<(Entity, &Forming, &mut Transform, &mut Mass, &mut Scale, &mut Velocity), Without<Camera>>,
     is_interacting_ui: Res<IsInteractingUI>,
     camera: Query<(&Camera, &GlobalTransform, &Transform, &Projection)>,
@@ -116,7 +117,8 @@ fn create_planets_on_click(
 
 
 
-            scale.delta += SCALE_MULTIPLIER * 2.0;
+            scale.delta += SCALE_MULTIPLIER * 2.0 * slider_values.sliders["Planet Creation Speed"].slider_value;
+            mass.mass += mass.density * 2.0 * 40.0 * slider_values.sliders["Planet Creation Speed"].slider_value;
             
 
             if mouse_position.is_some(){
@@ -138,7 +140,7 @@ fn create_planets_on_click(
 
             
 
-            mass.mass += mass.density * 2.0 * 40.0;
+            
 
             //println!("{}", mass.mass);
         }

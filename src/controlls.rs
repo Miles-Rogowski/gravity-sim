@@ -3,6 +3,7 @@ use bevy::window::PrimaryWindow;
 use bevy::input::mouse::*;
 use::rand::*;
 use crate::planet_creation::*;
+use crate::ui::SliderWidgetStates;
 
 pub struct ControllsPlugin;
 
@@ -60,6 +61,7 @@ fn keyboard_shortcuts(
     mut mouse_inertia: ResMut<MouseInertia>,
     mut camera: Query<(&Camera, &GlobalTransform, &mut Transform, &mut Projection)>,
     window: Query<&mut Window, With<PrimaryWindow>>,
+    slider_values: Res<SliderWidgetStates>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     mouse_input: Res<ButtonInput<MouseButton>>,
     mouse_motion: Res<AccumulatedMouseMotion>,
@@ -147,8 +149,8 @@ fn keyboard_shortcuts(
         for mut planet in planets.iter_mut(){
             if planet.4.is_some(){
                 if mouse_inertia.x != 0.0 && mouse_inertia.y != 0.0{
-                    planet.3.x += mouse_inertia.x * zoom.scale / 2.0;
-                    planet.3.y -= mouse_inertia.y * zoom.scale / 2.0;
+                    planet.3.x += (mouse_inertia.x * zoom.scale / 2.0) * slider_values.sliders["Throw Strength"].slider_value;
+                    planet.3.y -= (mouse_inertia.y * zoom.scale / 2.0) * slider_values.sliders["Throw Strength"].slider_value;
                 }
 
                 commands.entity(planet.0).remove::<ActivePlanet>();

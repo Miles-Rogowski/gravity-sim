@@ -1,11 +1,12 @@
 use bevy::{
-    color::palettes::css::*, ecs::name, input_focus::{
+    color::palettes::basic::*,
+    input_focus::{
         InputDispatchPlugin, tab_navigation::{TabGroup, TabIndex, TabNavigationPlugin}
-    }, math::ops, picking::hover::Hovered, prelude::*, sprite::{Anchor, Text2dShadow}, text::{FontSmoothing, LineBreak, TextBounds}, ui::InteractionDisabled, ui_widgets::{
-        CoreSliderDragState, Slider, SliderRange, SliderThumb, SliderValue, TrackClick, UiWidgetsPlugins, ValueChange, observe
+    }, picking::hover::Hovered, prelude::*, text::FontSmoothing, ui::{InteractionDisabled, Pressed}, ui_widgets::{
+        Activate, Button, CoreSliderDragState, Slider, SliderRange, SliderThumb, SliderValue, TrackClick, UiWidgetsPlugins, ValueChange, observe
     }
 };
-use std::{collections::HashMap, hash::Hash};
+use std::collections::HashMap;
 
 
 pub struct UIPlugin;
@@ -24,14 +25,18 @@ impl Plugin for UIPlugin {
             InputDispatchPlugin,
             TabNavigationPlugin,
         ))
-        .insert_resource(DemoWidgetStates {
+        .insert_resource(SliderWidgetStates {
             sliders: HashMap::from([
-                (String::from("demo_slider_1"), SliderState{
-                    slider_value: 50.0,
+                (String::from("Planet Creation Speed"), SliderState{
+                    slider_value: 1.0,
                     slider_click: TrackClick::Snap,
                 }),
-                (String::from("demo_slider_2"), SliderState{
-                    slider_value: 50.0,
+                (String::from("Throw Strength"), SliderState{
+                    slider_value: 1.0,
+                    slider_click: TrackClick::Snap,
+                }),
+                (String::from("Gravity Multiplier"), SliderState{
+                    slider_value: 1.0,
                     slider_click: TrackClick::Snap,
                 }),
             ])
@@ -45,6 +50,8 @@ impl Plugin for UIPlugin {
             Update,
             (
                 update_widget_values,
+                update_button_style,
+                update_button_style2,
                 update_slider_style.after(update_widget_values),
                 update_slider_style2.after(update_widget_values),
                 toggle_disabled,
@@ -53,8 +60,13 @@ impl Plugin for UIPlugin {
     }
 }
 
+const NORMAL_BUTTON: Color = Color::srgb(0.15, 0.15, 0.15);
+const HOVERED_BUTTON: Color = Color::srgb(0.25, 0.25, 0.25);
+const PRESSED_BUTTON: Color = Color::srgb(0.35, 0.75, 0.35);
+
 const SLIDER_TRACK: Color = Color::srgb(0.05, 0.05, 0.05);
 const SLIDER_THUMB: Color = Color::srgb(0.35, 0.75, 0.35);
+
 const ELEMENT_FILL_DISABLED: Color = Color::srgb(0.501, 0.501, 0.501);
 
 
@@ -63,23 +75,26 @@ const ELEMENT_FILL_DISABLED: Color = Color::srgb(0.501, 0.501, 0.501);
 //markers for different ui elements
 
 #[derive(Component)]
-struct DemoSlider;
+struct UIButton;
 
 #[derive(Component)]
-struct DemoSliderThumb;
+struct UISlider;
+
+#[derive(Component)]
+struct UISliderThumb;
 
 //struct used to keep track of Widget states
 
-struct SliderState{
-    slider_value: f32,
+pub struct SliderState{
+    pub slider_value: f32,
     slider_click: TrackClick,
 }
 
 //slider data
 
 #[derive(Resource)]
-struct DemoWidgetStates{
-    sliders: HashMap<String, SliderState>
+pub struct SliderWidgetStates{
+    pub sliders: HashMap<String, SliderState>
 }
 
 #[derive(Resource)]
@@ -88,8 +103,8 @@ pub struct IsInteractingUI(pub bool);
 
 
 fn update_widget_values( 
-    res: Res<DemoWidgetStates>,
-    mut sliders: Query<(Entity, &mut Slider, &Name), With<DemoSlider>>,
+    res: Res<SliderWidgetStates>,
+    mut sliders: Query<(Entity, &mut Slider, &Name), With<UISlider>>,
     mut commands: Commands,
 ){
     if res.is_changed(){
@@ -113,10 +128,10 @@ fn spawn_ui(
         ..default()
     };
 
-    commands.spawn(demo_root(text_font));
+    commands.spawn(demo_root(text_font, &asset_server));
 }
 
-fn demo_root(text_font: TextFont) -> impl Bundle{
+fn demo_root(text_font: TextFont, asset_server: &AssetServer) -> impl Bundle{
     (
         Node {
             width: percent(100),
@@ -132,26 +147,55 @@ fn demo_root(text_font: TextFont) -> impl Bundle{
         TabGroup::default(),
         children![
             (
-                Text::new(" Demo Text "),
+                button(asset_server),
+                observe(|_activate: On<Activate>, mut widget_states: ResMut<SliderWidgetStates>,|{
+                    println!("button clicked");
+                    let keys: Vec<String> = widget_states.sliders.keys().cloned().collect();
+                    for key in keys{
+                        let slider_click = widget_states.sliders[&key].slider_click;
+                        widget_states.sliders.insert(key.to_string(), SliderState { slider_value: 1.0, slider_click: slider_click });
+                    }
+                }),
+            ),
+            (
+                Text::new(" Planet Creation Speed "),
                 text_font.clone().with_font_smoothing(FontSmoothing::AntiAliased),
             ),
             (
-                slider(0.0, 100.0, 50.0, "demo_slider_1".to_string()),
+                slider(0.1, 10.0, 1.0, "Planet Creation Speed".to_string()),
                 observe(
                     |value_change: On<ValueChange<f32>>,
-                    mut widget_states: ResMut<DemoWidgetStates>|{
-                        let slider_click = widget_states.sliders["demo_slider_1"].slider_click;
-                        widget_states.sliders.insert("demo_slider_1".to_string(), SliderState { slider_value: value_change.value, slider_click: slider_click });
+                    mut widget_states: ResMut<SliderWidgetStates>|{
+                        let slider_click = widget_states.sliders["Planet Creation Speed"].slider_click;
+                        widget_states.sliders.insert("Planet Creation Speed".to_string(), SliderState { slider_value: value_change.value, slider_click: slider_click });
                     },
                 )
             ),
             (
-                slider(0.0, 100.0, 50.0, "demo_slider_2".to_string()),
+                Text::new(" Throw Strength "),
+                text_font.clone().with_font_smoothing(FontSmoothing::AntiAliased),
+            ),
+            (
+                slider(0.1, 10.0, 1.0, "Throw Strength".to_string()),
                 observe(
                     |value_change: On<ValueChange<f32>>,
-                    mut widget_states: ResMut<DemoWidgetStates>|{
-                        let slider_click = widget_states.sliders["demo_slider_2"].slider_click;
-                        widget_states.sliders.insert("demo_slider_2".to_string(), SliderState { slider_value: value_change.value, slider_click: slider_click });
+                    mut widget_states: ResMut<SliderWidgetStates>|{
+                        let slider_click = widget_states.sliders["Throw Strength"].slider_click;
+                        widget_states.sliders.insert("Throw Strength".to_string(), SliderState { slider_value: value_change.value, slider_click: slider_click });
+                    },
+                )
+            ),
+            (
+                Text::new(" Gravity Multiplier "),
+                text_font.clone().with_font_smoothing(FontSmoothing::AntiAliased),
+            ),
+            (
+                slider(-10.0, 10.0, 1.0, "Gravity Multiplier".to_string()),
+                observe(
+                    |value_change: On<ValueChange<f32>>,
+                    mut widget_states: ResMut<SliderWidgetStates>|{
+                        let slider_click = widget_states.sliders["Gravity Multiplier"].slider_click;
+                        widget_states.sliders.insert("Gravity Multiplier".to_string(), SliderState { slider_value: value_change.value, slider_click: slider_click });
                     },
                 )
             )
@@ -173,12 +217,12 @@ fn slider(min: f32, max: f32, value: f32, name: String) -> impl Bundle{
             justify_items: JustifyItems::Center,
             column_gap: px(4),
             height: px(12),
-            width: percent(20),
+            width: px(250),
             ..default()
         },
         Name::new(name),
         Hovered::default(),
-        DemoSlider,
+        UISlider,
         Slider{
             track_click: TrackClick::Snap,
         },
@@ -212,7 +256,7 @@ fn slider(min: f32, max: f32, value: f32, name: String) -> impl Bundle{
                 },
                 children![(
                     //thumb
-                    DemoSliderThumb,
+                    UISliderThumb,
                     SliderThumb,
                     Node {
                         display: Display::Flex,
@@ -248,11 +292,11 @@ fn update_slider_style(
                 Changed<CoreSliderDragState>,
                 Added<InteractionDisabled>,
             )>,
-            With<DemoSlider>,
+            With<UISlider>,
         ),
     >,
     children: Query<&Children>,
-    mut thumbs: Query<(&mut Node, &mut BackgroundColor, Has<DemoSliderThumb>), Without<DemoSlider>>,
+    mut thumbs: Query<(&mut Node, &mut BackgroundColor, Has<UISliderThumb>), Without<UISlider>>,
     mut is_interacting_ui: ResMut<IsInteractingUI>,
 ){
     for (slider_ent, value, range, hovered, drag_state, disabled) in sliders.iter(){
@@ -263,7 +307,6 @@ fn update_slider_style(
             }
         }
         is_interacting_ui.0 = hovered.0;
-        println!("{}", is_interacting_ui.0);
     }
 }
 
@@ -277,10 +320,10 @@ fn update_slider_style2(
             &CoreSliderDragState,
             Has<InteractionDisabled>,
         ),
-        With<DemoSlider>,
+        With<UISlider>,
     >,
     children: Query<&Children>,
-    mut thumbs: Query<(&mut BackgroundColor, Has<DemoSliderThumb>), Without<DemoSlider>>,
+    mut thumbs: Query<(&mut BackgroundColor, Has<UISliderThumb>), Without<UISlider>>,
     mut removed_disabled: RemovedComponents<InteractionDisabled>,
 ){
     removed_disabled.read().for_each(|entity| {
@@ -304,12 +347,152 @@ fn thumb_color(disabled: bool, hovered: bool) -> Color{
     }
 }
 
+
+//buttons :O
+//help im tired :P
+
+fn button(asset_server: &AssetServer) -> impl Bundle {
+    (
+        Node {
+            width: px(150),
+            height: px(65),
+            border: UiRect::all(px(5)),
+            border_radius: BorderRadius::MAX,
+            justify_content: JustifyContent::Center,
+            align_items: AlignItems::Center,
+            ..default()
+        },
+        UIButton,
+        Button,
+        Hovered::default(),
+        TabIndex(0),
+        BorderColor::all(Color::BLACK),
+        BackgroundColor(NORMAL_BUTTON),
+        children![(
+            Text::new("Reset To Defaults"),
+            TextFont {
+                font: asset_server.load("FiraSans-Bold.ttf"),
+                font_size: 15.0,
+                ..default()
+            },
+            TextColor(Color::srgb(0.9, 0.9, 0.9)),
+            TextShadow::default(),
+        )],
+    )
+}
+
+fn update_button_style(
+    mut buttons: Query<
+        (
+            Has<Pressed>,
+            &Hovered,
+            Has<InteractionDisabled>,
+            &mut BackgroundColor,
+            &mut BorderColor,
+            &Children,
+        ),
+        (
+            Or<(
+                Changed<Pressed>,
+                Changed<Hovered>,
+                Added<InteractionDisabled>,
+            )>,
+            With<UIButton>,
+        ),
+    >,
+    mut is_interacting_ui: ResMut<IsInteractingUI>,
+) {
+    for (pressed, hovered, disabled, mut color, mut border_color, _) in &mut buttons {
+        set_button_style(
+            disabled,
+            hovered.get(),
+            pressed,
+            &mut color,
+            &mut border_color,
+        );
+        is_interacting_ui.0 = hovered.0;
+    }
+}
+
+
+fn update_button_style2(
+    mut buttons: Query<
+        (
+            Has<Pressed>,
+            &Hovered,
+            Has<InteractionDisabled>,
+            &mut BackgroundColor,
+            &mut BorderColor,
+            &Children,
+        ),
+        With<UIButton>,
+    >,
+    mut removed_depressed: RemovedComponents<Pressed>,
+    mut removed_disabled: RemovedComponents<InteractionDisabled>,
+) {
+    removed_depressed
+        .read()
+        .chain(removed_disabled.read())
+        .for_each(|entity| {
+            if let Ok((pressed, hovered, disabled, mut color, mut border_color, _)) =
+                buttons.get_mut(entity)
+            {
+                set_button_style(
+                    disabled,
+                    hovered.get(),
+                    pressed,
+                    &mut color,
+                    &mut border_color,
+                );
+            }
+        });
+}
+
+
+fn set_button_style(
+    disabled: bool,
+    hovered: bool,
+    pressed: bool,
+    color: &mut BackgroundColor,
+    border_color: &mut BorderColor,
+){
+    match (disabled, hovered, pressed) {
+        // Disabled button
+        (true, _, _) => {
+            *color = NORMAL_BUTTON.into();
+            border_color.set_all(GRAY);
+        }
+
+        // Pressed and hovered button
+        (false, true, true) => {
+            *color = PRESSED_BUTTON.into();
+            border_color.set_all(RED);
+        }
+
+        // Hovered, unpressed button
+        (false, true, false) => {
+            *color = HOVERED_BUTTON.into();
+            border_color.set_all(WHITE);
+        }
+
+        // Unhovered button (either pressed or not).
+        (false, false, _) => {
+            *color = NORMAL_BUTTON.into();
+            border_color.set_all(BLACK);
+        }
+    }
+
+}
+
+
+
 fn toggle_disabled(
     input: Res<ButtonInput<KeyCode>>,
     mut interaction_query: Query<
         (Entity, Has<InteractionDisabled>),
         Or<(
             With<Slider>,
+            With<Button>,
         )>,
     >,
     mut commands: Commands,
