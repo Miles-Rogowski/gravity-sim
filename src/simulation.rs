@@ -168,11 +168,12 @@ fn update(
 
                     let x = (planet.3.translation.x + dx / distance * (planet.7.delta * TEXTURE_SIZE as f32 / 2.0)) + rng.random_range(-MAX_DEBRIS_OFFSET..MAX_DEBRIS_OFFSET);
                     let y = ( planet.3.translation.y + dy / distance * (planet.7.delta * TEXTURE_SIZE as f32 / 2.0)) + rng.random_range(-MAX_DEBRIS_OFFSET..MAX_DEBRIS_OFFSET);
-                    let vel_x = -combinations[&planet.0].vel_x / 2.5 + rng.random_range(-MAX_DEBRIS_DIRECTION_OFFSET..MAX_DEBRIS_DIRECTION_OFFSET);
-                    let vel_y = -combinations[&planet.0].vel_y / 2.5 + rng.random_range(-MAX_DEBRIS_DIRECTION_OFFSET..MAX_DEBRIS_DIRECTION_OFFSET);
+                    let scale = (combinations[&planet.0].scale / 20.0) / (TEXTURE_SIZE as f32 / 2.0);
+                    let vel_x = -combinations[&planet.0].vel_x / 2.5 + rng.random_range(-MAX_DEBRIS_DIRECTION_OFFSET  * scale..MAX_DEBRIS_DIRECTION_OFFSET  * scale);
+                    let vel_y = -combinations[&planet.0].vel_y / 2.5 + rng.random_range(-MAX_DEBRIS_DIRECTION_OFFSET  * scale..MAX_DEBRIS_DIRECTION_OFFSET  * scale);
                     let mass = rng.random_range(MIN_DEBRIS_MASS..MAX_DEBRIS_MASS);
                     let density = combinations[&planet.0].density;
-                    let scale = (combinations[&planet.0].scale / 20.0) / (TEXTURE_SIZE as f32 / 2.0);
+                    
 
 
                     commands.spawn((
