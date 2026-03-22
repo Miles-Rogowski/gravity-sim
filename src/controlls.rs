@@ -3,9 +3,7 @@ use bevy::window::PrimaryWindow;
 use bevy::input::mouse::*;
 use::rand::*;
 use crate::planet_creation::*;
-use std::path::Path;
-
-use bevy::render::render_resource::{Extent3d};
+use crate::ui::SliderWidgetStates;
 
 pub struct ControllsPlugin;
 
@@ -43,7 +41,6 @@ struct MouseInertia{
 fn setup(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    mut images: ResMut<Assets<Image>>,
 ){
 
     let img = asset_server.load("outline.png");
@@ -64,6 +61,7 @@ fn keyboard_shortcuts(
     mut mouse_inertia: ResMut<MouseInertia>,
     mut camera: Query<(&Camera, &GlobalTransform, &mut Transform, &mut Projection)>,
     window: Query<&mut Window, With<PrimaryWindow>>,
+    slider_values: Res<SliderWidgetStates>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     mouse_input: Res<ButtonInput<MouseButton>>,
     mouse_motion: Res<AccumulatedMouseMotion>,
@@ -92,7 +90,7 @@ fn keyboard_shortcuts(
 
             let scale = rng.random_range(1.0..50.0);
             
-            let texture = generate_planet_texture(TEXTURE_SIZE, TEXTURE_SIZE, (TEXTURE_SIZE / 2) as f32, (TEXTURE_SIZE / 2) as f32, (TEXTURE_SIZE / 2) as f32, PLANET_COLORS[rng.random_range(0..PLANET_COLORS.len())], PLANET_COLORS[rng.random_range(0..PLANET_COLORS.len())]);
+            let texture = generate_planet_texture(TEXTURE_SIZE, TEXTURE_SIZE, (TEXTURE_SIZE / 2) as f32, PLANET_COLORS[rng.random_range(0..PLANET_COLORS.len())], PLANET_COLORS[rng.random_range(0..PLANET_COLORS.len())]);
 
             let dens = rng.random_range(MIN_DENSITY..MAX_DENSITY);
 
@@ -151,8 +149,8 @@ fn keyboard_shortcuts(
         for mut planet in planets.iter_mut(){
             if planet.4.is_some(){
                 if mouse_inertia.x != 0.0 && mouse_inertia.y != 0.0{
-                    planet.3.x += mouse_inertia.x * zoom.scale / 2.0;
-                    planet.3.y -= mouse_inertia.y * zoom.scale / 2.0;
+                    planet.3.x += (mouse_inertia.x * zoom.scale / 2.0) * slider_values.sliders["Throw Strength"].slider_value;
+                    planet.3.y -= (mouse_inertia.y * zoom.scale / 2.0) * slider_values.sliders["Throw Strength"].slider_value;
                 }
 
                 commands.entity(planet.0).remove::<ActivePlanet>();

@@ -1,7 +1,7 @@
 use::bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use crate::planet_creation::*;
-use crate::controlls::ActivePlanet;
+use crate::ui::SliderWidgetStates;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use::rand::*;
@@ -37,11 +37,10 @@ const DEBRIS_PER_COLLISION: i32 = 10;
 
 pub const GRAVITY_MULTIPLIER: f32 = 500.0;
 
-
-
 fn update(
-    mut planets: Query<(Entity, &Formed, &mut Velocity, &mut Transform, &Mass, &Sprite, &AbsorbTimer, &mut Scale), (Without<Camera>, Without<ActivePlanet>)>,
+    mut planets: Query<(Entity, &Formed, &mut Velocity, &mut Transform, &Mass, &Sprite, &AbsorbTimer, &mut Scale), Without<Camera>>,
     mut commands: Commands,
+    slider_values: Res<SliderWidgetStates>,
     camera: Query<(&Camera, &GlobalTransform, &Transform, &Projection)>,
     window: Query<&Window, With<PrimaryWindow>>,
 ){
@@ -50,21 +49,18 @@ fn update(
     let Ok((_camera, _camera_transform, camera_position, projection)) = camera.single() else { panic!("no camera!") };
     let Projection::Orthographic(ref zoom) = *projection else { panic!("no projection!") };
 
+    let window = window.single().unwrap();
+
+    let width = window.width();
+    let height = window.height();
+    
     let mut accelerations: HashMap<Entity, Vec2> = HashMap::new();
 
     let mut combinations: HashMap<Entity, CombinationEntity> = HashMap::new();
     let mut entities_to_despawn: HashSet<Entity> = HashSet::new();
 
-    let window = window.single().unwrap();
-
-    let width = window.width();
-    let height = window.height();
-
     if planets.iter().len() > 1 {
         for [a, b] in planets.iter_combinations::<2>(){
-            
-            //acceleration = force/mass
-            //force = 55.743((mass1*mass2)/distance^2)
 
             let a_scale = (a.7.delta * TEXTURE_SIZE as f32 / 2.0) as f32;
             let b_scale = (b.7.delta * TEXTURE_SIZE as f32 / 2.0) as f32;
@@ -78,7 +74,7 @@ fn update(
             if distance == 0.0{ 
                 continue;
             }
-            let mut force = 55.743*((a.4.mass*b.4.mass)/distance) * GRAVITY_MULTIPLIER;
+            let mut force = 55.743*((a.4.mass*b.4.mass)/distance) * GRAVITY_MULTIPLIER * slider_values.sliders["Gravity Multiplier"].slider_value;
 
             if distance.sqrt() < a_scale + b_scale{
                 //colliding
@@ -160,7 +156,7 @@ fn update(
 
             //create debris
 
-            if combinations[&planet.0].mass > 10.0{
+            if combinations[&planet.0].mass > 5.0{
                 for _i in 0..DEBRIS_PER_COLLISION{
                     let dx = combinations[&planet.0].x - planet.3.translation.x;
                     let dy = combinations[&planet.0].y - planet.3.translation.y;

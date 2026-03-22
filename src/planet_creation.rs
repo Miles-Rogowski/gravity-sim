@@ -4,14 +4,11 @@ use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use bevy::asset::RenderAssetUsages;
 use rand::*;
 
-use std::fs::File;
+use crate::ui::{IsInteractingUI, SliderWidgetStates};
+
 use std::path::Path;
 
-use image::GenericImage;
 use image::GenericImageView;
-use image::Pixels;
-use image::Pixel;
-use image::Rgba;
 
 
 pub struct PlanetCreationPlugin;
@@ -23,11 +20,12 @@ impl Plugin for PlanetCreationPlugin {
     }
 }
 
-pub const PLANET_COLORS: [bevy::prelude::LinearRgba; 3] = [
+pub const PLANET_COLORS: [bevy::prelude::LinearRgba; 4] = [
     LinearRgba::rgb(0.19, 0.63, 0.38),
     LinearRgba::rgb(0.16, 0.29, 0.79),
-    LinearRgba::rgb(0.70, 0.41, 0.22)
-    ];
+    LinearRgba::rgb(0.70, 0.41, 0.22),
+    LinearRgba::rgb(0.33, 0.33, 0.35)
+];
 
 
 pub const MAX_VELOCITY: f32 = 5.0;
@@ -76,7 +74,9 @@ fn create_planets_on_click(
     mouse_input: Res<ButtonInput<MouseButton>>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     window: Query<&mut Window, With<PrimaryWindow>>,
+    slider_values: Res<SliderWidgetStates>,
     mut planets_forming: Query<(Entity, &Forming, &mut Transform, &mut Mass, &mut Scale, &mut Velocity), Without<Camera>>,
+    is_interacting_ui: Res<IsInteractingUI>,
     camera: Query<(&Camera, &GlobalTransform, &Transform, &Projection)>,
 ){
     let mut rng = rand::rng();
@@ -87,13 +87,13 @@ fn create_planets_on_click(
     let Ok((_camera, _camera_transform, camera_position, projection)) = camera.single() else { panic!("no camera!") };
     let Projection::Orthographic(ref zoom) = *projection else { panic!("no projection!") };
 
-    if mouse_input.just_pressed(MouseButton::Left) && planets_forming.iter().len() < 1 && !keyboard_input.pressed(KeyCode::ControlLeft){
+    if mouse_input.just_pressed(MouseButton::Left) && planets_forming.iter().len() < 1 && !keyboard_input.pressed(KeyCode::ControlLeft) && !is_interacting_ui.0{
         //create planet
 
         let x = (mouse_position.unwrap().x - window.width() / 2.0) * zoom.scale + camera_position.translation.x;
         let y = -(mouse_position.unwrap().y - window.height() / 2.0) * zoom.scale + camera_position.translation.y;
 
-        let texture = generate_planet_texture(TEXTURE_SIZE, TEXTURE_SIZE, (TEXTURE_SIZE / 2) as f32, (TEXTURE_SIZE / 2) as f32, (TEXTURE_SIZE / 2) as f32, PLANET_COLORS[rng.random_range(0..PLANET_COLORS.len())], PLANET_COLORS[rng.random_range(0..PLANET_COLORS.len())]);
+        let texture = generate_planet_texture(TEXTURE_SIZE, TEXTURE_SIZE, (TEXTURE_SIZE / 2) as f32, PLANET_COLORS[rng.random_range(0..PLANET_COLORS.len())], PLANET_COLORS[rng.random_range(0..PLANET_COLORS.len())]);
 
         let vel_x = rng.random_range(-MAX_VELOCITY..MAX_VELOCITY);
         let vel_y = rng.random_range(-MAX_VELOCITY..MAX_VELOCITY);
@@ -117,7 +117,8 @@ fn create_planets_on_click(
 
 
 
-            scale.delta += SCALE_MULTIPLIER * 2.0;
+            scale.delta += SCALE_MULTIPLIER * 2.0 * slider_values.sliders["Planet Creation Speed"].slider_value;
+            mass.mass += mass.density * 2.0 * 40.0 * slider_values.sliders["Planet Creation Speed"].slider_value;
             
 
             if mouse_position.is_some(){
@@ -139,7 +140,7 @@ fn create_planets_on_click(
 
             
 
-            mass.mass += mass.density * 2.0 * 40.0;
+            
 
             //println!("{}", mass.mass);
         }
@@ -156,7 +157,7 @@ fn create_planets_on_click(
     }
 }
 
-pub fn generate_planet_texture(width: u32, height: u32, center_x: f32, center_y: f32, radius: f32, color1: LinearRgba, mut color2: LinearRgba) -> Image{
+pub fn generate_planet_texture(width: u32, height: u32, radius: f32, color1: LinearRgba, mut color2: LinearRgba) -> Image{
 
     let mut rng = rand::rng();
 
